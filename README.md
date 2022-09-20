@@ -1,3 +1,6 @@
+
+This is a fork from the original repo:https://github.com/Abe404/RootPainter3D
+The purpose of this fork is to extendt the rootpainter3d to use DICOM files
 ## RootPainter3D
 
 This software is not approved for clinical use. Also please See [LICENSE](https://github.com/Abe404/RootPainter3D/blob/master/LICENSE) file.

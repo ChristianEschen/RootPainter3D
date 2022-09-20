@@ -636,8 +636,8 @@ class Trainer():
         try:
             im = load_image(fpath)
             # TODO: Consider removing thie soon
-            im = np.rot90(im, k=3)
-            im = np.moveaxis(im, -1, 0) # depth moved to beginning
+            #im = np.rot90(im, k=3)
+           # im = np.moveaxis(im, -1, 0) # depth moved to beginning
             # reverse lr and ud
             im = im[::-1, :, ::-1]
         except Exception as e:
@@ -665,5 +665,5 @@ class Trainer():
             with warnings.catch_warnings():
                 # create a version with alpha channel
                 warnings.simplefilter("ignore")
-                outpath = outpath.replace('.nrrd', '.nii.gz')
+                outpath = outpath.replace('.nrrd', '.nii.gz').replace('.DCM', '.nii.gz').replace('.dcm', '.nii.gz')
                 save(outpath, seg)

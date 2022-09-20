@@ -51,6 +51,7 @@ import im_utils
 import menus
 from segment import segment_full_image
 from lock import create_lock_file, delete_lock_files_for_current_user, get_lock_file_path, show_locked_message
+from pathlib import Path
 
 
 use_plugin("pil")
@@ -216,8 +217,13 @@ class RootPainter(QtWidgets.QMainWindow):
         
         if self.view_state == ViewState.ANNOTATING:
             self.save_annotation()
-        self.fname = os.path.basename(fpath)
-        self.image_path = os.path.join(self.dataset_dir, self.fname)
+        #self.fname = os.path.basename(fpath)
+        # basename = os.path.basename(fpath)
+        # dirname = os.path.basename(os.path.dirname(fpath))
+        # self.fname = os.path.join(dirname, basename)
+        _, _, self.fname = fpath.partition(
+            os.path.basename(self.dataset_dir._str) +os.path.sep)
+        self.image_path = os.path.join(self.dataset_dir._str, self.fname)
         self.img_data = im_utils.load_image(self.image_path) 
         # if a guide image directory is specified - TODO: Consider removing guide image functionality if it isn't used frequently
         if hasattr(self, 'guide_image_dir'):
@@ -243,6 +249,7 @@ class RootPainter(QtWidgets.QMainWindow):
             segment_full_image(self, self.fname) # segment current image.
         
         # segment the next image also.
+        
         cur_im_idx = self.image_fnames.index(self.fname)
         if cur_im_idx < len(self.image_fnames):    
             next_im_fname = self.image_fnames[cur_im_idx+1]
@@ -348,7 +355,12 @@ class RootPainter(QtWidgets.QMainWindow):
     def get_seg_path(self, fname=None):
         if fname is None:
             fname = self.fname
-        seg_fname = fname.replace('.nrrd', '.nii.gz')
+        if fname.endswith(
+            ('.dcm', '.dicom', '.sr', '.DCM', '.DICOM', '.SR')):
+            seg_fname = fname.replace('.dcm', '.nii.gz').replace('.DCM', '.nii.gz')
+        else:
+            seg_fname = fname.replace('.nrrd', '.nii.gz')
+        #seg_fname = fname.replace('.nrrd', '.nii.gz')
         # just seg path for current class.
         if hasattr(self, 'classes') and len(self.classes) > 1:
             return os.path.join(self.seg_dir,
@@ -360,7 +372,12 @@ class RootPainter(QtWidgets.QMainWindow):
     def get_train_seg_path(self, fname=None):
         if fname is None:
             fname = self.fname
-        seg_fname = fname.replace('.nrrd', '.nii.gz')
+        if fname.endswith(
+            ('.dcm', '.dicom', '.sr', '.DCM', '.DICOM', '.SR')):
+            seg_fname = fname.replace('.dcm', '.nii.gz').replace('.DCM', '.nii.gz')
+        else:
+            seg_fname = fname.replace('.nrrd', '.nii.gz')
+        #seg_fname = fname.replace('.nrrd', '.nii.gz')
         if hasattr(self, 'classes') and len(self.classes) > 1:
             return os.path.join(self.proj_location,
                                 'train_segmentations',
@@ -778,7 +795,9 @@ class RootPainter(QtWidgets.QMainWindow):
         if self.annot_data is not None:
             for v in self.viewers:
                 v.store_annot_slice()
-            fname = os.path.basename(self.get_seg_path())
+           # _, _, fname = self.get_seg_path().partition('segmentations/')
+            _, _, fname = self.get_seg_path().partition('segmentations/')
+        #    fname = os.path.basename(self.get_seg_path())
             self.annot_path = maybe_save_annotation_3d(self.img_data.shape,
                                                        self.annot_data,
                                                        self.annot_path,
@@ -789,8 +808,16 @@ class RootPainter(QtWidgets.QMainWindow):
             if self.annot_path:
                 #if self.auto_complete_enabled:
                 # also save the segmentation, as this updated due to patch updates (potencially).
+                #print('seg_data shape before permute', self.seg_data.shape)
+                #seg_data_repermute = np.moveaxis(self.seg_data, -1, 0) 
+                #print('seg_data shape before permute',seg_data_repermute.shape)
+                
+                out_path_seg = self.get_train_seg_path()
+                dir_to_create = os.path.dirname(out_path_seg)
+                Path(dir_to_create).mkdir(parents=True, exist_ok=True)
+                    
                 img = nib.Nifti1Image(self.seg_data.astype(np.int8), np.eye(4))
-                img.to_filename(self.get_seg_path())
+                img.to_filename(out_path_seg)
                 # if annotation was saved to train 
                 if str(self.get_train_annot_dir()) in self.annot_path:
                     # if there are at least 4 train annotations (happens after
@@ -799,8 +826,10 @@ class RootPainter(QtWidgets.QMainWindow):
                     # corrected per the new protocol from image 5 and onwards
                     # all segmentations will be saved for training as they are
                     # fully corrected.
+                    
+
                     if len(os.listdir(self.get_train_annot_dir())) >= 4:
-                        img.to_filename(self.get_train_seg_path())
+                        img.to_filename(out_path_seg)
                 else:
                     # otherwise if it was saved to validation then start training
                     # as we now believe there is training and validation data.

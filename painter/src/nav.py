@@ -115,7 +115,16 @@ class NavWidget(QtWidgets.QWidget):
         self.update_nav_label()
 
     def update_nav_label(self):
-        dir_path, _ = os.path.split(self.image_path)
+        #dir_path, _ = os.path.split(self.image_path)
+        dir_path = self.get_dir_path(self.image_path)
         all_paths = self.get_path_list(dir_path)
         cur_idx = all_paths.index(os.path.abspath(self.image_path))
         self.nav_label.setText(f'{cur_idx + 1} / {len(all_paths)}')
+
+
+    def get_dir_path(self, image_path):
+        for fname in self.all_fnames:
+            if fname in image_path:
+                dir_path = image_path[0:-len(fname)]
+                return dir_path
+                

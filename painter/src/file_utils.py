@@ -24,6 +24,8 @@ import numpy as np
 from skimage.io import imread
 import nibabel as nib
 import im_utils
+from pathlib import Path
+
 
 def penultimate_fname_with_segmentation(fnames, seg_dir):
     """
@@ -47,13 +49,25 @@ def penultimate_fname_with_segmentation(fnames, seg_dir):
         seg_fnames += os.listdir(seg_dir)
 
     for fname in fnames:
-        base_fname =  fname.replace('.nrrd', '.nii.gz')
-        
+       #=  fname.replace('.nrrd', '.nii.gz')
+        if fname.endswith(
+            ('.dcm', '.dicom', '.sr', '.DCM', '.DICOM', '.SR')):
+            base_fname = fname.replace('.dcm', '.nii.gz')
+        else:
+            base_fname = fname.replace('.nrrd', '.nii.gz')
         if base_fname in seg_fnames:
             if last_fname is not None:
                 pen_fname = last_fname
             last_fname = fname
     return pen_fname
+
+def get_recursive_files(input_path):
+    filenames = []
+    path = Path(input_path)
+    for p in path.rglob("*"):
+        if os.path.isdir(str(p)) is False:
+            filenames.append(p._str)
+    return filenames
 
 
 def get_annot_path(fname, train_dir, val_dir):
@@ -62,7 +76,13 @@ def get_annot_path(fname, train_dir, val_dir):
     train or val annot dirs.
     Otherwise return None
     """
-    fname = fname.replace('.nrrd', '.nii.gz')
+    if fname.endswith(
+        ('.dcm', '.dicom', '.sr', '.DCM', '.DICOM', '.SR')):
+      #  fname = fname.replace('.dcm', '.nii.gz')
+        fname = fname.replace('.dcm', '.nii.gz').replace('.DCM', '.nii.gz')
+
+    else:
+        fname = fname.replace('.nrrd', '.nii.gz')
     train_path = os.path.join(train_dir, fname)
     val_path = os.path.join(val_dir, fname)
     if os.path.isfile(train_path):
@@ -74,9 +94,12 @@ def get_annot_path(fname, train_dir, val_dir):
 
 def get_new_annot_target_dir(train_annot_dir, val_annot_dir):
     """ Should we add new annotations to train or validation data? """
-    train_annots = os.listdir(train_annot_dir)
-    val_annots = os.listdir(val_annot_dir)
-
+    #train_annots = os.listdir(train_annot_dir)
+    #val_annots = os.listdir(val_annot_dir)
+    train_annots = get_recursive_files(train_annot_dir)
+    val_annots = get_recursive_files(val_annot_dir)
+    
+    
     train_annots = [f for f in train_annots if (splitext(f)[1] in ['.png', '.npy', '.gz'])]
     val_annots = [f for f in val_annots if (splitext(f)[1] in ['.png', '.npy', '.gz'])]
 
@@ -127,7 +150,12 @@ def maybe_save_annotation_3d(image_data_shape, annot_data, annot_path,
             annot_dir = get_new_annot_target_dir(train_annot_dir, val_annot_dir)
             # files starting with . are not used in training.
             tmp_annot_path = os.path.join(annot_dir, '.tmp_' + fname)
+            dir_to_create = os.path.dirname(tmp_annot_path)
+            Path(dir_to_create).mkdir(parents=True, exist_ok=True)
             annot_path = os.path.join(annot_dir, fname)
+            dir_to_create = os.path.dirname(annot_path)
+            Path(dir_to_create).mkdir(parents=True, exist_ok=True)
+            
             img = nib.Nifti1Image(annot_data, np.eye(4))
             img.to_filename(tmp_annot_path) 
             # rename after finished saving to avoid error with loading partially saved annotation.

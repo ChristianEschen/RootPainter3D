@@ -185,8 +185,8 @@ class RPDataset(Dataset):
         #  needs to be swapped to channels first and rotated etc
         # to be consistent with everything else.
         # todo: consider removing this soon.
-        image = np.rot90(image, k=3)
-        image = np.moveaxis(image, -1, 0) # depth moved to beginning
+        #image = np.rot90(image, k=3)
+       # image = np.moveaxis(image, -1, 0) # depth moved to beginning
         # reverse lr and ud
         image = image[::-1, :, ::-1]
 

@@ -36,12 +36,44 @@ import nibabel as nib
 from scipy.ndimage import binary_fill_holes
 from skimage.segmentation import flood
 import nrrd
+import SimpleITK as sitk
+from pathlib import Path
+from scipy.ndimage import zoom
 
 
 def is_image(fname):
-    extensions = {'.npy', 'gz', 'nrrd'}
+    extensions = {
+        '.npy', 'gz', 'nrrd', '.dicom',
+        '.dcm', '.DCM', '.DICOM', '.sr', '.SR'
+        }
     return any(fname.lower().endswith(ext) for ext in extensions)
 
+
+def get_recursive_files(input_path):
+    filenames = []
+    path = Path(input_path)
+    for p in path.rglob("*"):
+        if os.path.isdir(str(p)) is False:
+            filenames.append(p._str)
+    return filenames
+
+def resizeVolume(img, output_size):
+    factors = (output_size[0]/img.shape[1],
+                output_size[1]/img.shape[2])
+
+    return zoom(img, (1, factors[0], factors[1]))
+
+def pad_image(image, pad_size):
+    shap = image.shape
+    if shap[0] < pad_size:
+        to_pad = pad_size - shap[0]
+        if (to_pad % 2) == 0:
+            image = np.pad(image, ((to_pad/2,to_pad/2), (0,0), (0, 0)), 'constant')
+        else:
+            image = np.pad(image, ((to_pad/2+1,to_pad/2), (0,0), (0, 0)), 'constant')
+    # else:
+    #     image = image[0:pad_size, :, :]
+    return image
 
 def load_image(image_path):
     if image_path.endswith('.npy'):
@@ -59,6 +91,15 @@ def load_image(image_path):
         image = np.moveaxis(image, -1, 0) # depth moved to beginning
         # reverse lr and ud
         image = image[::-1, :, ::-1]
+    elif image_path.endswith(('.dicom', '.DICOM', '.dcm',
+                              '.DCM',  '.sr', '.SR')):
+        image = sitk.ReadImage(image_path)
+        image = sitk.GetArrayFromImage(image)
+       # image = resizeVolume(image, (128, 128))
+        image = pad_image(image, 34)
+        print('image shape loaded (dcm)', image.shape)
+       # image = image[0:32, :, :]
+      #  image = sitk.
     else:
         raise Exception(f"Unhandled file ending {image_path}")
     image = image.astype(np.int)
@@ -66,14 +107,41 @@ def load_image(image_path):
 
 
 def load_annot(annot_path, img_data_shape):
-    annot_image = nib.load(annot_path)
-    annot_data = np.array(annot_image.dataobj, dtype=bool)
+    if annot_path.endswith(('.dicom', '.DICOM', '.dcm',
+                            '.DCM',  '.sr', '.SR')):
+        image = sitk.ReadImage(annot_path)
+        annot_data = sitk.GetArrayFromImage(image)
+        annot_data = np.array(annot_data, dtype=bool)
+        print('annot data shape', annot_data.shape)
+        
+    else:
+        annot_image = nib.load(annot_path)
+        annot_data = np.array(annot_image.dataobj, dtype=bool)
+  #      annot_data = np.rot90(annot_data, k=3)
+      # print('annot data shape before permutation', annot_data.shape)
+       # annot_data = np.moveaxis(annot_data, -1, 0) # depth moved to beginning
+        print('annot data shape permutation', annot_data.shape)
+
     return annot_data
 
 
 def load_seg(seg_path):
-    seg_image = nib.load(seg_path)
-    seg_data = np.array(seg_image.dataobj, dtype=bool)
+    if seg_path.endswith(('.dicom', '.DICOM', '.dcm',
+                            '.DCM',  '.sr', '.SR')):
+        image = sitk.ReadImage(seg_path)
+        seg_data = sitk.GetArrayFromImage(image)
+       # seg_data = resizeVolume(seg_data, (128, 128))
+        seg_data = np.array(seg_data, dtype=bool)
+        print('seg data shape', seg_data.shape)
+
+        
+    else:
+        seg_image = nib.load(seg_path)
+        seg_data = np.array(seg_image.dataobj, dtype=bool)
+    #    seg_data = np.rot90(seg_data, k=3)
+        print('seg_data shape before per', seg_data.shape)
+       # seg_data = np.moveaxis(seg_data, -1, 0) # depth moved to beginning
+        print('seg_data shape', seg_data.shape)
     # This issue may be related to file system issues.
     assert  len(seg_data.shape) == 3, f"seg shape is {seg_data.shape} for {seg_path}"
     return seg_data

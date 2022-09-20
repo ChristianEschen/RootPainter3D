@@ -25,7 +25,7 @@ from pathlib import Path, PurePosixPath
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
 
-from im_utils import is_image
+from im_utils import is_image, get_recursive_files
 from palette import PaletteEditWidget
 from name_edit_widget import NameEditWidget
 
@@ -147,11 +147,12 @@ class CreateProjectWidget(QtWidgets.QWidget):
             self.create_project_btn.setEnabled(False)
             return
 
-        cur_files = os.listdir(self.selected_dir)
+        #cur_files = os.listdir(self.selected_dir)
+        cur_files = get_recursive_files(self.selected_dir)
         cur_files = [f for f in cur_files if is_image(f)]
 
         if not cur_files:
-            message = "Folder contains no compatible images. Valid formats include NIfTI (.nii.gz) and nrrd"
+            message = "Folder contains no compatible images. Valid formats include .nifti, .nrrd and dicom"
             self.info_label.setText(message)
             self.create_project_btn.setEnabled(False)
             return
@@ -250,7 +251,8 @@ class CreateProjectWidget(QtWidgets.QWidget):
 
         dataset = dataset_path.replace(datasets_dir, '')[1:]
         # get files in random order for training.
-        all_fnames = os.listdir(dataset_path)
+        #all_fnames = os.listdir(dataset_path)
+        all_fnames = get_recursive_files(dataset_path)
         # images only
         all_fnames = [a for a in all_fnames if is_image(a)]
 
@@ -272,7 +274,14 @@ class CreateProjectWidget(QtWidgets.QWidget):
 
         # add these at the end because it makes the json more readable
         # to have the short entries at the top.
-        project_info['file_names'] = all_fnames
+        # REDUCE to basename and one level parent path
+        all_fnames_reduced = []
+        for fname_i in all_fnames:
+            red = os.path.join(os.path.basename(os.path.dirname(fname_i)),
+                         os.path.basename(fname_i))
+            all_fnames_reduced.append(red)
+            
+        project_info['file_names'] = all_fnames_reduced
 
         with open(proj_file_path, 'w') as json_file:
             json.dump(project_info, json_file, indent=4)

@@ -24,7 +24,7 @@ import torch
 import copy
 from skimage import img_as_float32
 import im_utils
-from unet3d import UNet3D
+from unet3d import UNet3D, SmallUNet3D
 from file_utils import ls
 from torch.nn.functional import softmax
 import torch.nn.functional as F
@@ -56,7 +56,7 @@ def get_in_w_out_w_pairs():
 def allocate_net(in_w, out_w, num_classes):
 
     channels = 1 # change to 3 for auto-complete
-    net = UNet3D(im_channels=channels, num_classes=num_classes).cuda()
+    net = SmallUNet3D(im_channels=channels, num_classes=num_classes).cuda()
     net = torch.nn.DataParallel(net)
     optimizer = torch.optim.SGD(net.parameters(), lr=0.01,
                                 momentum=0.99, nesterov=True)
@@ -131,7 +131,7 @@ def load_model(model_path, classes):
     # each non-empty channel in the annotation is included with 50% chance.
     # - fg and bg will go in as seprate channels 
     #  so channels are [image, fg_annot, bg_annot]
-    model = UNet3D(num_classes=len(classes), im_channels=1) # 3 channels as annotation may be used as input.
+    model = SmallUNet3D(num_classes=len(classes), im_channels=1) # 3 channels as annotation may be used as input.
 
     try:
         model.load_state_dict(torch.load(model_path))
@@ -153,7 +153,7 @@ def random_model(classes):
     # as we have a positive and negative output for each structure.
     # disabled for now as auto-complete feature is stalled.
     #model = UNet3D(classes, im_channels=3)
-    model = UNet3D(num_classes=len(classes), im_channels=1) # 3 channels to enable optional annotation as input.
+    model = SmallUNet3D(num_classes=len(classes), im_channels=1) # 3 channels to enable optional annotation as input.
     model = torch.nn.DataParallel(model)
     if not use_fake_cnn: 
         model.cuda()

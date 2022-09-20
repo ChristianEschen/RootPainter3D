@@ -27,17 +27,28 @@ import numpy as np
 import skimage.util as skim_util
 from skimage.exposure import rescale_intensity
 import nibabel as nib
-from file_utils import ls
+from file_utils import ls, ls_annotations
 import nrrd
 from pathlib import Path
 import traceback
+import SimpleITK as sitk
+from scipy.ndimage import zoom
+
+def get_recursive_files(input_path):
+    filenames = []
+    path = Path(input_path)
+    for p in path.rglob("*"):
+        if os.path.isdir(str(p)) is False:
+            filenames.append(p._str)
+    return filenames
 
 def is_image(fname):
     """ extensions that have been tested with so far """
     extensions = {".jpg", ".png", ".jpeg", '.tif', '.tiff'}
     fname_ext = os.path.splitext(fname)[1].lower()
     return (fname_ext in extensions or fname.endswith('.nii.gz') or 
-            fname.endswith('.npy') or fname.endswith('.nrrd'))
+            fname.endswith('.npy') or fname.endswith('.nrrd') or fname.endswith('.dcm')
+            or fname.endswith('.DCM'))
 
 def normalize_tile(tile):
     if np.min(tile) < np.max(tile):
@@ -105,7 +116,7 @@ def load_image_and_annot_for_seg(dataset_dir, train_annot_dirs, fname):
         
        
         for train_annot_dir in train_annot_dirs:
-            annot_fnames = ls(train_annot_dir)
+            annot_fnames = ls_annotations(train_annot_dir)
             fnames += annot_fnames
             # Assuming class name is in annotation path
             # i.e annotations/{class_name}/train/annot1.png,annot2.png..
@@ -132,7 +143,7 @@ def load_image_and_annot_for_seg(dataset_dir, train_annot_dirs, fname):
 
         # it's possible the image has a different extenstion
         # so use glob to get it
-        fname_no_ext = fname.replace('.nii.gz', '').replace('.nrrd', '')
+        fname_no_ext = fname.replace('.nii.gz', '').replace('.nrrd', '').replace('.dcm', '')
         image_path_part = os.path.join(dataset_dir, fname_no_ext)
         image_path = glob.glob(image_path_part + '.*')[0]
         image = load_image(image_path)
@@ -140,10 +151,10 @@ def load_image_and_annot_for_seg(dataset_dir, train_annot_dirs, fname):
         #  needs to be swapped to channels first and rotated etc
         # to be consistent with everything else.
         # todo: consider removing this soon.
-        image = np.rot90(image, k=3)
-        image = np.moveaxis(image, -1, 0) # depth moved to beginning
+        #image = np.rot90(image, k=3)
+        #image = np.moveaxis(image, -1, 0) # depth moved to beginning
         # reverse lr and ud
-        image = image[::-1, :, ::-1]
+       # image = image[::-1, :, ::-1]
 
         # also return fname for debugging purposes.
         return image, annots, classes, fname
@@ -177,7 +188,7 @@ def load_train_image_and_annot(dataset_dir, train_seg_dirs, train_annot_dirs):
         assert len(train_seg_dirs) == len(train_annot_dirs)
     
         for train_seg_dir, train_annot_dir in zip(train_seg_dirs, train_annot_dirs):
-            annot_fnames = ls(train_annot_dir)
+            annot_fnames = ls_annotations(train_annot_dir)
             fnames += annot_fnames
             # Assuming class name is in annotation path
             # i.e annotations/{class_name}/train/annot1.png,annot2.png..
@@ -212,6 +223,8 @@ def load_train_image_and_annot(dataset_dir, train_seg_dirs, train_annot_dirs):
             seg_path = os.path.join(seg_dir, fname)
             if os.path.isfile(seg_path):
                 seg = load_image(seg_path)
+                # TODO :
+                # MAYBE NOT (0, 0) ???
                 seg = np.pad(seg, ((17,17), (17,17), (17, 17)), mode='constant')
             else:
                 seg = None
@@ -219,17 +232,17 @@ def load_train_image_and_annot(dataset_dir, train_seg_dirs, train_annot_dirs):
 
         # it's possible the image has a different extenstion
         # so use glob to get it
-        fname_no_ext = fname.replace('.nii.gz', '').replace('.nrrd', '')
+        fname_no_ext = fname.replace('.nii.gz', '').replace('.nrrd', '').replace('.dcm', '')
         image_path_part = os.path.join(dataset_dir, fname_no_ext)
         image_path = glob.glob(image_path_part + '.*')[0]
         image = load_image(image_path)
         #  needs to be swapped to channels first and rotated etc
         # to be consistent with everything else.
         # todo: consider removing this soon.
-        image = np.rot90(image, k=3)
-        image = np.moveaxis(image, -1, 0) # depth moved to beginning
+        #image = np.rot90(image, k=3)
+       # image = np.moveaxis(image, -1, 0) # depth moved to beginning
         # reverse lr and ud
-        image = image[::-1, :, ::-1]
+      #  image = image[::-1, :, ::-1]
         # images are no longer padded on disk
         image = np.pad(image, ((17,17), (17,17), (17, 17)), mode='constant')
         # also return fname for debugging purposes.
@@ -418,12 +431,21 @@ def save_then_move(out_path, seg):
 
 
 def save(out_path, seg):
+    dir_to_create = os.path.dirname(out_path)
+    Path(dir_to_create).mkdir(parents=True, exist_ok=True)
+
     if out_path.endswith('.nii.gz'):
+        print('save seg shape', seg.shape)
         img = nib.Nifti1Image(seg, np.eye(4))
         img.to_filename(out_path)
     else:
         raise Exception(f'Unhandled {out_path}')
 
+def resizeVolume(img, output_size):
+    factors = (output_size[0]/img.shape[1],
+                output_size[1]/img.shape[2])
+
+    return zoom(img, (1, factors[0], factors[1]))
 
 def load_image(image_path):
     if image_path.endswith('.npy'):
@@ -436,4 +458,26 @@ def load_image(image_path):
         # more convenient segmentation options.
         image = nib.load(image_path)
         image = np.array(image.dataobj)
+       # print('ups this function was not supoosed to run')
+    elif image_path.endswith(('.dcm', '.DCM')):
+        image = sitk.ReadImage(image_path)
+        image = sitk.GetArrayFromImage(image)
+   #     image = resizeVolume(image, (128, 128))
+        image = pad_image(image, 34)
+        
+    else:
+        print('image path', image_path)
+        raise ValueError('not implemented')
+    return image
+
+def pad_image(image, pad_size):
+    shap = image.shape
+    if shap[0] < pad_size:
+        to_pad = pad_size - shap[0]
+        if (to_pad % 2) == 0:
+            image = np.pad(image, ((to_pad/2,to_pad/2), (0,0), (0, 0)), 'constant')
+        else:
+            image = np.pad(image, ((to_pad/2+1,to_pad/2), (0,0), (0, 0)), 'constant')
+    # else:
+    #     image = image[0:pad_size, :, :]
     return image

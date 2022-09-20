@@ -53,10 +53,13 @@ def get_in_w_out_w_pairs():
     return list(zip(in_w_list, out_w_list))
 
 
-def allocate_net(in_w, out_w, num_classes):
+def allocate_net(in_w, out_w, num_classes, small_unet):
 
     channels = 1 # change to 3 for auto-complete
-    net = SmallUNet3D(im_channels=channels, num_classes=num_classes).cuda()
+    if small_unet:
+        net = SmallUNet3D(im_channels=channels, num_classes=num_classes).cuda()
+    else:
+        net = UNet3D(im_channels=channels, num_classes=num_classes).cuda()
     net = torch.nn.DataParallel(net)
     optimizer = torch.optim.SGD(net.parameters(), lr=0.01,
                                 momentum=0.99, nesterov=True)
@@ -90,7 +93,7 @@ def allocate_net(in_w, out_w, num_classes):
         del input_data
 
 
-def get_in_w_out_w_for_memory(num_classes):
+def get_in_w_out_w_for_memory(num_classes, small_unet):
     print('computing largest patch size for GPU, num class = ', num_classes)
     # search for appropriate input size for GPU
     # in_w, out_w = get_in_w_out_w_for_memory(num_classes)
@@ -99,7 +102,7 @@ def get_in_w_out_w_for_memory(num_classes):
     for i, (in_w, out_w) in enumerate(pairs):
         torch.cuda.empty_cache()
         try:
-            allocate_net(in_w, out_w, num_classes)
+            allocate_net(in_w, out_w, num_classes, small_unet)
             torch.cuda.empty_cache()
             print(in_w, out_w, 'ok')
             print('using', pairs[i+1], 'to be safe') # return the next smallest to be safe
@@ -119,7 +122,7 @@ def get_latest_model_paths(model_dir, k):
     return fpaths
 
 
-def load_model(model_path, classes):
+def load_model(model_path, classes, small_unet):
     global cached_model
     global cached_model_path
     
@@ -131,8 +134,10 @@ def load_model(model_path, classes):
     # each non-empty channel in the annotation is included with 50% chance.
     # - fg and bg will go in as seprate channels 
     #  so channels are [image, fg_annot, bg_annot]
-    model = SmallUNet3D(num_classes=len(classes), im_channels=1) # 3 channels as annotation may be used as input.
-
+    if small_unet:
+        model = SmallUNet3D(num_classes=len(classes), im_channels=1) # 3 channels as annotation may be used as input.
+    else:
+        model = UNet3D(num_classes=len(classes), im_channels=1)
     try:
         model.load_state_dict(torch.load(model_path))
         model = torch.nn.DataParallel(model)
@@ -148,23 +153,26 @@ def load_model(model_path, classes):
     return copy.deepcopy(model)
 
 
-def random_model(classes):
+def random_model(classes, small_unet):
     # num out channels is twice number of channels
     # as we have a positive and negative output for each structure.
     # disabled for now as auto-complete feature is stalled.
     #model = UNet3D(classes, im_channels=3)
-    model = SmallUNet3D(num_classes=len(classes), im_channels=1) # 3 channels to enable optional annotation as input.
+    if small_unet:
+        model = SmallUNet3D(num_classes=len(classes), im_channels=1) # 3 channels as annotation may be used as input.
+    else:
+        model = UNet3D(num_classes=len(classes), im_channels=1)
     model = torch.nn.DataParallel(model)
     if not use_fake_cnn: 
         model.cuda()
     return model
 
-def create_first_model_with_random_weights(model_dir, classes):
+def create_first_model_with_random_weights(model_dir, classes, small_unet):
     # used when no model was specified on project creation.
     model_num = 1
     model_name = str(model_num).zfill(6)
     model_name += '_' + str(int(round(time.time()))) + '.pkl'
-    model = random_model(classes)
+    model = random_model(classes, small_unet)
     model_path = os.path.join(model_dir, model_name)
     torch.save(model.state_dict(), model_path)
     if not use_fake_cnn: 
@@ -172,9 +180,9 @@ def create_first_model_with_random_weights(model_dir, classes):
     return model
 
 
-def get_prev_model(model_dir, classes):
+def get_prev_model(model_dir, classes, small_unet):
     prev_path = get_latest_model_paths(model_dir, k=1)[0]
-    prev_model = load_model(prev_path, classes)
+    prev_model = load_model(prev_path, classes, small_unet)
     return prev_model, prev_path
 
 
@@ -203,11 +211,11 @@ def save_model(model_dir, cur_model, prev_model_path):
 
 
 def ensemble_segment_3d(model_paths, image, fname, batch_size, in_w, out_w, in_d,
-                        out_d, classes):
+                        out_d, classes, small_unet):
     """ Average predictions from each model specified in model_paths """
     t = time.time()
     input_image_shape = image.shape
-    cnn = load_model(model_paths[0], classes)
+    cnn = load_model(model_paths[0], classes, small_unet)
     in_patch_shape = (in_d, in_w, in_w)
     out_patch_shape = (out_d, out_w, out_w)
 

@@ -30,6 +30,12 @@ if __name__ == '__main__':
     parser.add_argument('--syncdir',
                         help=('location of directory where data is'
                               ' synced between the client and server'))
+    parser.add_argument('--small_unet',
+                        help="""
+                'please specify if you want to use a samll
+                (few channels) unet for debug | True, False""", type=bool,
+                required=True,
+                default=False)
     settings_path = os.path.join(Path.home(), 'root_painter_settings.json')
    
     settings = None
@@ -47,8 +53,8 @@ if __name__ == '__main__':
     if settings and 'auto_complete' in settings and settings['auto_complete']:
         ip = settings['server_ip']
         port = settings['server_port']
-        trainer = Trainer(sync_dir, ip, port)
+        trainer = Trainer(sync_dir, args.small_unet, ip, port)
     else:
-        trainer = Trainer(sync_dir)
+        trainer = Trainer(sync_dir, args.small_unet)
 
     trainer.main_loop()

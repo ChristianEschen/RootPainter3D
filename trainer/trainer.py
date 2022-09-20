@@ -55,7 +55,7 @@ from file_utils import ls
 
 class Trainer():
 
-    def __init__(self, sync_dir, ip=None, port=None):
+    def __init__(self, sync_dir, small_unet=False, ip=None, port=None):
         self.sync_dir = sync_dir
         self.ip = ip
         self.port = port
@@ -81,7 +81,7 @@ class Trainer():
         
         self.in_w = None
         self.out_w = None
-
+        self.small_unet = small_unet
         # approx 30 minutes
         self.max_epochs_without_progress = 60
         # These can be trigged by data sent from client
@@ -128,7 +128,7 @@ class Trainer():
         new_config = copy.deepcopy(config)
         num_classes = len(config['classes'])
         if self.in_w is None:
-            in_w, out_w = model_utils.get_in_w_out_w_for_memory(num_classes)
+            in_w, out_w = model_utils.get_in_w_out_w_for_memory(num_classes, self.small_unet)
             self.in_w = in_w
             self.out_w = out_w
             print('found input width of', in_w, 'and output width of', out_w)
@@ -222,9 +222,11 @@ class Trainer():
 
             model_paths = model_utils.get_latest_model_paths(model_dir, 1)
             if model_paths:
-                self.model = model_utils.load_model(model_paths[0], classes)
+                self.model = model_utils.load_model(model_paths[0], classes,
+                                                    self.small_unet)
             else:
-                self.model = create_first_model_with_random_weights(model_dir, classes)
+                self.model = create_first_model_with_random_weights(
+                    model_dir, classes, self.small_unet)
             self.optimizer = torch.optim.SGD(self.model.parameters(), lr=0.01,
                                              momentum=0.99, nesterov=True)
 
@@ -415,7 +417,8 @@ class Trainer():
         """
         model_dir = self.train_config['model_dir']
         prev_model, prev_path = model_utils.get_prev_model(model_dir,
-                                                           self.train_config['classes'])
+                                                           self.train_config['classes'],
+                                                           self.small_unet)
         self.val_tile_refs = self.get_new_val_tiles_refs()
 
         if not self.val_tile_refs:
@@ -534,7 +537,7 @@ class Trainer():
             # if latest is not found then create a model with random weights
             # and use that.
             if not model_paths:
-                create_first_model_with_random_weights(model_dir, classes)
+                create_first_model_with_random_weights(model_dir, classes, self.small_unet)
                 model_paths = model_utils.get_latest_model_paths(model_dir, 1)
         if "overwrite" in segment_config:
             overwrite = segment_config['overwrite']
@@ -650,7 +653,7 @@ class Trainer():
 
         seg_in_w, seg_out_w = self.get_in_w_and_out_w_for_image(im, in_w, out_w) 
         segmented = ensemble_segment_3d(model_paths, im, fname, self.batch_size,
-                                        seg_in_w, seg_out_w, in_d, out_d, classes)
+                                        seg_in_w, seg_out_w, in_d, out_d, classes, self.small_unet)
 
         print(f'ensemble segment {fname}, dur', round(time.time() - seg_start, 2))
         

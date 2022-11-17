@@ -22,18 +22,16 @@ from pathlib import Path
 import json
 import copy
 
-def startup_setup(settings_path, sync_dir=None):
+def startup_setup(arguments, sync_dir=None):
     """
-    1. if the settings file doesn't exist (and sync_dir not specified)
-       then ask the user for a sync dir and create the settings file
-       else if it does exist then read the sync dir from it.
+    1. arguments contains dict with setting.
     2. If the sync dir doesn't exist then create it.
     3. If the required sync dir subfolders don't exist then create them.
     """
 
     # Get sync dir from settings file.
-    if os.path.isfile(settings_path):
-        sync_dir = Path(json.load(open(settings_path, 'r'))['sync_dir'])
+    if os.path.isfile(arguments['sync_dir']):
+        sync_dir = Path(json.load(open(arguments['sync_dir'], 'r'))['sync_dir'])
         sync_dir_abs = os.path.abspath(sync_dir)
     else:
         # only create config file if user did not specify the sync dir on the command line
@@ -43,14 +41,11 @@ def startup_setup(settings_path, sync_dir=None):
             sync_dir = input("Please specify RootPainter3D sync directory")
         sync_dir = os.path.expanduser(sync_dir)
         sync_dir_abs = os.path.abspath(sync_dir)
-        with open(settings_path, 'w') as json_file:
-            content = {
-                "sync_dir": sync_dir_abs,
-                    "contrast_presets": {
-                        'Mediastinal': [-125, 250, 100]
-                    }
-                }
-            print(f'Writing {sync_dir_abs} to {settings_path}')
+        with open(arguments['sync_dir'], 'w') as json_file:
+            del arguments['sync_dir']
+            arguments['contrast_presets'] = {'Mediastinal': [-125, 250, 100]}
+            content = {**arguments, **{"sync_dir": sync_dir_abs}}
+            print(f'Writing {sync_dir_abs} to {sync_dir}')
             json.dump(content, json_file, indent=4)
 
     # If sync_dir doesn't exist then create it.

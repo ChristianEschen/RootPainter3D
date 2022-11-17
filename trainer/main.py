@@ -36,17 +36,50 @@ if __name__ == '__main__':
                 (few channels) unet for debug | True, False""", type=bool,
                 required=True,
                 default=False)
+    parser.add_argument(
+        '--raw_dicom_data', type=str,
+        help="database name",
+        required=True)
+    parser.add_argument(
+        '--database', type=str,
+        help="database name",
+        required=True)
+    parser.add_argument(
+        '--username', type=str,
+        help="username for database",
+        required=True)
+    parser.add_argument(
+        '--password', type=str,
+        help="password for database",
+        required=True)
+    parser.add_argument(
+        '--host', type=str,
+        help="host for database",
+        required=True)
+    parser.add_argument(
+        '--port', type=str,
+        help="port for database",
+        required=True)
+    parser.add_argument(
+        '--table_name', type=str,
+        help="table name in database",
+        required=True)
+    parser.add_argument(
+        '--schema_name', type=str,
+        help="table name in database",
+        required=True)
     settings_path = os.path.join(Path.home(), 'root_painter_settings.json')
    
     settings = None
     
     args = parser.parse_args()
-    
+    arguments = vars(args)
+    arguments['sync_dir'] = settings_path
     if args.syncdir:
         sync_dir = args.syncdir
-        startup_setup(settings_path, sync_dir=sync_dir)
+        startup_setup(arguments, sync_dir=sync_dir)
     else:
-        startup_setup(settings_path, sync_dir=None)
+        startup_setup(arguments, sync_dir=None)
         settings = json.load(open(settings_path, 'r'))
         sync_dir = Path(settings['sync_dir'])
         

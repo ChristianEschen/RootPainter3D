@@ -119,7 +119,7 @@ def load_image(image_path):
         image = sitk.ReadImage(image_path)
         image = sitk.GetArrayFromImage(image)
        # image = resizeVolume(image, (128, 128))
-        image = pad_image(image, 34)
+      #  image = pad_image(image, 34)
         print('image shape loaded (dcm)', image.shape)
        # image = image[0:32, :, :]
       #  image = sitk.

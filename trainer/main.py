@@ -24,70 +24,44 @@ import json
 import argparse
 from trainer import Trainer
 from startup import startup_setup
+import yaml
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--syncdir',
                         help=('location of directory where data is'
-                              ' synced between the client and server'))
-    parser.add_argument('--small_unet',
+                              ' synced between the client and server'),
+                        required=True)
+    parser.add_argument('--config_file',
                         help="""
-                'please specify if you want to use a samll
-                (few channels) unet for debug | True, False""", type=bool,
+                'please specify path to yaml config file""", type=str,
                 required=True,
                 default=False)
-    parser.add_argument(
-        '--raw_dicom_data', type=str,
-        help="database name",
-        required=True)
-    parser.add_argument(
-        '--database', type=str,
-        help="database name",
-        required=True)
-    parser.add_argument(
-        '--username', type=str,
-        help="username for database",
-        required=True)
-    parser.add_argument(
-        '--password', type=str,
-        help="password for database",
-        required=True)
-    parser.add_argument(
-        '--host', type=str,
-        help="host for database",
-        required=True)
-    parser.add_argument(
-        '--port', type=str,
-        help="port for database",
-        required=True)
-    parser.add_argument(
-        '--table_name', type=str,
-        help="table name in database",
-        required=True)
-    parser.add_argument(
-        '--schema_name', type=str,
-        help="table name in database",
-        required=True)
+
     settings_path = os.path.join(Path.home(), 'root_painter_settings.json')
    
     settings = None
     
     args = parser.parse_args()
     arguments = vars(args)
+    with open(args.config_file, 'r') as f:
+        config = yaml.safe_load(f)
     arguments['sync_dir'] = settings_path
-    if args.syncdir:
-        sync_dir = args.syncdir
-        startup_setup(arguments, sync_dir=sync_dir)
-    else:
-        startup_setup(arguments, sync_dir=None)
-        settings = json.load(open(settings_path, 'r'))
-        sync_dir = Path(settings['sync_dir'])
+    arguments = {**config, **arguments}
+   # if args.syncdir:
+    sync_dir = args.syncdir
+    startup_setup(arguments, sync_dir=sync_dir)
+    # else:
+    #     startup_setup(arguments, sync_dir=None)
+    #     settings = json.load(open(settings_path, 'r'))
+    #     sync_dir = Path(settings['sync_dir'])
         
     if settings and 'auto_complete' in settings and settings['auto_complete']:
         ip = settings['server_ip']
         port = settings['server_port']
-        trainer = Trainer(sync_dir, args.small_unet, ip, port)
+        trainer = Trainer(sync_dir, config['small_unet'], ip, port)
     else:
-        trainer = Trainer(sync_dir, args.small_unet)
+        trainer = Trainer(sync_dir, config['small_unet'])
 
     trainer.main_loop()

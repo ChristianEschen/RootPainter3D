@@ -33,6 +33,9 @@ from pathlib import Path
 import traceback
 import SimpleITK as sitk
 from scipy.ndimage import zoom
+import pandas as pd
+import psycopg2
+
 
 def get_recursive_files(input_path):
     filenames = []
@@ -41,6 +44,27 @@ def get_recursive_files(input_path):
         if os.path.isdir(str(p)) is False:
             filenames.append(p._str)
     return filenames
+
+
+
+def getDataFromDatabase(sql_config):
+    connection = psycopg2.connect(
+        host=sql_config['host'],
+        database=sql_config['database'],
+        user=sql_config['username'],
+        password=sql_config['password'])
+    sql = sql_config['query'].replace(
+        "?table_name", "\"" + sql_config['table_name'] + "\"")
+    sql = sql.replace(
+        "?schema_name", "\"" + sql_config['schema_name'] + "\"")
+    sql = sql.replace(
+        "??", "\"")
+    df = pd.read_sql_query(sql, connection)
+    if len(df) == 0:
+        print('The requested query does not have any data!')
+    connection.close()
+
+    return df['DcmPathFlatten'].tolist()
 
 def is_image(fname):
     """ extensions that have been tested with so far """
@@ -215,6 +239,8 @@ def load_train_image_and_annot(dataset_dir, train_seg_dirs, train_annot_dirs):
         for annot_dir, seg_dir in zip(annot_dirs, seg_dirs): # for each of the classes.
             annot_path = os.path.join(annot_dir, fname)
             annot = load_image(annot_path)
+            # TODO not pad here?
+           # annot = pad_annot(annot, 34)
             # Why would we have annotations without content?
             assert np.sum(annot) > 0
             annot = np.pad(annot, ((0, 0), (17,17), (17,17), (17, 17)), mode='constant')
@@ -477,7 +503,19 @@ def pad_image(image, pad_size):
         if (to_pad % 2) == 0:
             image = np.pad(image, ((to_pad/2,to_pad/2), (0,0), (0, 0)), 'constant')
         else:
-            image = np.pad(image, ((to_pad/2+1,to_pad/2), (0,0), (0, 0)), 'constant')
+            image = np.pad(image, ((int(to_pad/2)+1, int(to_pad/2)), (0,0), (0, 0)), 'constant')
+    # else:
+    #     image = image[0:pad_size, :, :]
+    return image
+
+def pad_annot(image, pad_size):
+    shap = image.shape
+    if shap[1] < pad_size:
+        to_pad = pad_size - shap[1]
+        if (to_pad % 2) == 0:
+            image = np.pad(image, ((0,0), (to_pad/2,to_pad/2), (0,0), (0, 0)), 'constant')
+        else:
+            image = np.pad(image, ((0,0), (int(to_pad/2)+1, int(to_pad/2)), (0,0), (0, 0)), 'constant')
     # else:
     #     image = image[0:pad_size, :, :]
     return image

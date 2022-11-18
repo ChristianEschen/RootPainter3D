@@ -23,6 +23,9 @@ import traceback
 
 from PyQt5 import QtWidgets
 from root_painter import RootPainter
+import yaml
+import argparse
+
 
 def init_root_painter():
     app = QtWidgets.QApplication(sys.argv)
@@ -77,4 +80,14 @@ def init_root_painter():
         msg.exec_()
 
 if __name__ == '__main__':
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--config_file',
+    #                     help="""
+    #             'please specify path to yaml config file""", type=str,
+    #             required=True,
+    #             default=False)
+    # args = parser.parse_args()
+    # arguments = vars(args)
+    # with open(args.config_file, 'r') as f:
+    #     config = yaml.safe_load(f)
     init_root_painter()

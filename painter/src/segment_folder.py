@@ -22,7 +22,10 @@ from PyQt5 import QtWidgets
 from PyQt5 import QtCore
 from progress_widget import BaseProgressWidget
 from instructions import send_instruction
-from im_utils import is_image
+from im_utils import is_image, getDataFromDatabase
+from pathlib import Path
+import json
+
 
 class SegmentWatchThread(QtCore.QThread):
     """
@@ -73,20 +76,28 @@ class SegmentFolderWidget(QtWidgets.QWidget):
 
     def __init__(self, sync_dir, instruction_dir, classes):
         super().__init__()
-
+        # TODO # read the yaml config
         self.input_dir = None
         self.output_dir = None
         self.selected_models = []
         self.instruction_dir = instruction_dir
         self.sync_dir = sync_dir
         self.classes = classes
+        self.settings = self.get_config()
+
         self.initUI()
+
+    def get_config(self):
+        settings_path = os.path.join(Path.home(), 'root_painter_settings.json')
+        settings = json.load(open(settings_path, 'r'))
+        return settings
 
     def segment_folder(self):
         selected_models = self.selected_models
         input_dir = self.input_dir
         output_dir = self.output_dir
-        all_fnames = os.listdir(str(input_dir))
+      #  all_fnames = os.listdir(str(input_dir))
+        all_fnames = getDataFromDatabase(self.settings)
         all_fnames = [f for f in all_fnames if is_image(f)]
 
         seg_classes = copy.deepcopy(self.classes)

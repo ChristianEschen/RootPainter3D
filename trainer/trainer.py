@@ -528,6 +528,7 @@ class Trainer():
         else:
             # default to using all files in the directory if file_names is not specified.
             fnames = ls(in_dir)
+            #ls_annotations(in_dir)
         # if model paths not specified use latest.
         if "model_paths" in segment_config:
             model_paths = segment_config['model_paths']
@@ -640,7 +641,7 @@ class Trainer():
             im = load_image(fpath)
             # TODO: Consider removing thie soon
             #im = np.rot90(im, k=3)
-           # im = np.moveaxis(im, -1, 0) # depth moved to beginning
+            # im = np.moveaxis(im, -1, 0) # depth moved to beginning
             # reverse lr and ud
             im = im[::-1, :, ::-1]
         except Exception as e:

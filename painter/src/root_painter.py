@@ -52,6 +52,7 @@ import menus
 from segment import segment_full_image
 from lock import create_lock_file, delete_lock_files_for_current_user, get_lock_file_path, show_locked_message
 from pathlib import Path
+from im_utils import getDataFromDatabase
 
 
 use_plugin("pil")
@@ -90,8 +91,13 @@ class RootPainter(QtWidgets.QMainWindow):
         self.log_debounce.setInterval(500)
         self.log_debounce.setSingleShot(True)
         self.log_debounce.timeout.connect(self.log_debounced)
-
+        self.settings = self.get_config()
         self.initUI()
+
+    def get_config(self):
+        settings_path = os.path.join(Path.home(), 'root_painter_settings.json')
+        settings = json.load(open(settings_path, 'r'))
+        return settings
 
     def initUI(self):
         if len(sys.argv) < 2:
@@ -224,6 +230,7 @@ class RootPainter(QtWidgets.QMainWindow):
         _, _, self.fname = fpath.partition(
             os.path.basename(self.dataset_dir._str) +os.path.sep)
         self.image_path = os.path.join(self.dataset_dir._str, self.fname)
+        #etDataFromDatabase(self.settings)
         self.img_data = im_utils.load_image(self.image_path) 
         # if a guide image directory is specified - TODO: Consider removing guide image functionality if it isn't used frequently
         if hasattr(self, 'guide_image_dir'):

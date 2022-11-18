@@ -39,7 +39,8 @@ import nrrd
 import SimpleITK as sitk
 from pathlib import Path
 from scipy.ndimage import zoom
-
+import pandas as pd
+import psycopg2
 
 def is_image(fname):
     extensions = {
@@ -49,6 +50,26 @@ def is_image(fname):
     return any(fname.lower().endswith(ext) for ext in extensions)
 
 
+def getDataFromDatabase(sql_config):
+    connection = psycopg2.connect(
+        host=sql_config['host'],
+        database=sql_config['database'],
+        user=sql_config['username'],
+        password=sql_config['password'])
+    sql = sql_config['query'].replace(
+        "?table_name", "\"" + sql_config['table_name'] + "\"")
+    sql = sql.replace(
+        "?schema_name", "\"" + sql_config['schema_name'] + "\"")
+    sql = sql.replace(
+        "??", "\"")
+    df = pd.read_sql_query(sql, connection)
+    if len(df) == 0:
+        print('The requested query does not have any data!')
+    connection.close()
+
+    return df['DcmPathFlatten'].tolist()
+
+
 def get_recursive_files(input_path):
     filenames = []
     path = Path(input_path)
@@ -56,6 +77,8 @@ def get_recursive_files(input_path):
         if os.path.isdir(str(p)) is False:
             filenames.append(p._str)
     return filenames
+
+
 
 def resizeVolume(img, output_size):
     factors = (output_size[0]/img.shape[1],
@@ -70,7 +93,7 @@ def pad_image(image, pad_size):
         if (to_pad % 2) == 0:
             image = np.pad(image, ((to_pad/2,to_pad/2), (0,0), (0, 0)), 'constant')
         else:
-            image = np.pad(image, ((to_pad/2+1,to_pad/2), (0,0), (0, 0)), 'constant')
+            image = np.pad(image, ((int(to_pad/2)+1,int(to_pad/2)), (0,0), (0, 0)), 'constant')
     # else:
     #     image = image[0:pad_size, :, :]
     return image

@@ -25,7 +25,7 @@ from pathlib import Path, PurePosixPath
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
 
-from im_utils import is_image, get_recursive_files
+from im_utils import is_image, get_recursive_files, getDataFromDatabase
 from palette import PaletteEditWidget
 from name_edit_widget import NameEditWidget
 
@@ -40,7 +40,13 @@ class CreateProjectWidget(QtWidgets.QWidget):
         self.selected_model = None
         self.use_random_weights = True
         self.sync_dir = sync_dir
+        self.settings = self.get_config()
         self.initUI()
+
+    def get_config(self):
+        settings_path = os.path.join(Path.home(), 'root_painter_settings.json')
+        settings = json.load(open(settings_path, 'r'))
+        return settings
 
     def initUI(self):
         self.layout = QtWidgets.QVBoxLayout()
@@ -148,7 +154,9 @@ class CreateProjectWidget(QtWidgets.QWidget):
             return
 
         #cur_files = os.listdir(self.selected_dir)
-        cur_files = get_recursive_files(self.selected_dir)
+        # TODO get files using db
+        #cur_files = get_recursive_files(self.selected_dir)
+        cur_files = getDataFromDatabase(self.settings)
         cur_files = [f for f in cur_files if is_image(f)]
 
         if not cur_files:
@@ -252,7 +260,9 @@ class CreateProjectWidget(QtWidgets.QWidget):
         dataset = dataset_path.replace(datasets_dir, '')[1:]
         # get files in random order for training.
         #all_fnames = os.listdir(dataset_path)
-        all_fnames = get_recursive_files(dataset_path)
+       # all_fnames = get_recursive_files(dataset_path)
+        all_fnames = getDataFromDatabase(self.settings)
+        ## TODO #
         # images only
         all_fnames = [a for a in all_fnames if is_image(a)]
 
@@ -275,14 +285,14 @@ class CreateProjectWidget(QtWidgets.QWidget):
         # add these at the end because it makes the json more readable
         # to have the short entries at the top.
         # REDUCE to basename and one level parent path
-        all_fnames_reduced = []
-        for fname_i in all_fnames:
-            red = os.path.join(os.path.basename(os.path.dirname(fname_i)),
-                         os.path.basename(fname_i))
-            all_fnames_reduced.append(red)
+        # all_fnames_reduced = []
+        # for fname_i in all_fnames:
+        #     red = os.path.join(os.path.basename(os.path.dirname(fname_i)),
+        #                  os.path.basename(fname_i))
+        #     all_fnames_reduced.append(red)
             
-        project_info['file_names'] = all_fnames_reduced
-
+      #  project_info['file_names'] = all_fnames_reduced
+        project_info['file_names'] = all_fnames
         with open(proj_file_path, 'w') as json_file:
             json.dump(project_info, json_file, indent=4)
         self.created.emit(proj_file_path)

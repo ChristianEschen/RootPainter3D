@@ -9,10 +9,6 @@ RUN apt-get update -y && \
    apt-get update -y && \ 
    apt-get install libpq-dev -y
 
-RUN apt-get update && apt-get install -y \
-    git \
-    git-lfs
-RUN apt-get upgrade libstdc++6 -y
 
 # pip packages
 RUN pip install --requirement /tmp/requirements.txt

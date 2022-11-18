@@ -28,7 +28,7 @@ import skimage.util as skim_util
 from skimage.exposure import rescale_intensity
 import nibabel as nib
 from file_utils import ls, ls_annotations
-import nrrd
+#import nrrd
 from pathlib import Path
 import traceback
 import SimpleITK as sitk
@@ -240,7 +240,7 @@ def load_train_image_and_annot(dataset_dir, train_seg_dirs, train_annot_dirs):
             annot_path = os.path.join(annot_dir, fname)
             annot = load_image(annot_path)
             # TODO not pad here?
-           # annot = pad_annot(annot, 34)
+            annot = pad_annot(annot, 34)
             # Why would we have annotations without content?
             assert np.sum(annot) > 0
             annot = np.pad(annot, ((0, 0), (17,17), (17,17), (17, 17)), mode='constant')
@@ -251,6 +251,7 @@ def load_train_image_and_annot(dataset_dir, train_seg_dirs, train_annot_dirs):
                 seg = load_image(seg_path)
                 # TODO :
                 # MAYBE NOT (0, 0) ???
+                seg = pad_image(seg, 34)
                 seg = np.pad(seg, ((17,17), (17,17), (17, 17)), mode='constant')
             else:
                 seg = None
@@ -262,6 +263,7 @@ def load_train_image_and_annot(dataset_dir, train_seg_dirs, train_annot_dirs):
         image_path_part = os.path.join(dataset_dir, fname_no_ext)
         image_path = glob.glob(image_path_part + '.*')[0]
         image = load_image(image_path)
+        image = pad_image(image, 34)
         #  needs to be swapped to channels first and rotated etc
         # to be consistent with everything else.
         # todo: consider removing this soon.
@@ -477,7 +479,8 @@ def load_image(image_path):
     if image_path.endswith('.npy'):
         image = np.load(image_path, mmap_mode='c')
     elif image_path.endswith('.nrrd'):
-        image, _ = nrrd.read(image_path)
+        raise ValueError('not implemented')
+        #image, _ = nrrd.read(image_path)
     elif image_path.endswith('.nii.gz'):
         # We don't currently use them during training but it's useful to be
         # able to load nifty files directory to give the user
@@ -489,7 +492,7 @@ def load_image(image_path):
         image = sitk.ReadImage(image_path)
         image = sitk.GetArrayFromImage(image)
    #     image = resizeVolume(image, (128, 128))
-        image = pad_image(image, 34)
+      #  image = pad_image(image, 34)
         
     else:
         print('image path', image_path)

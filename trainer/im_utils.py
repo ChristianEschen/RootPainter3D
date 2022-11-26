@@ -240,7 +240,7 @@ def load_train_image_and_annot(dataset_dir, train_seg_dirs, train_annot_dirs):
             annot_path = os.path.join(annot_dir, fname)
             annot = load_image(annot_path)
             # TODO not pad here?
-            annot = pad_annot(annot, 34)
+         #   annot = pad_annot(annot, 34) # removed 22nov
             # Why would we have annotations without content?
             assert np.sum(annot) > 0
             annot = np.pad(annot, ((0, 0), (17,17), (17,17), (17, 17)), mode='constant')
@@ -251,7 +251,7 @@ def load_train_image_and_annot(dataset_dir, train_seg_dirs, train_annot_dirs):
                 seg = load_image(seg_path)
                 # TODO :
                 # MAYBE NOT (0, 0) ???
-                seg = pad_image(seg, 34)
+              #  seg = pad_image(seg, 34) # removed 22nov
                 seg = np.pad(seg, ((17,17), (17,17), (17, 17)), mode='constant')
             else:
                 seg = None
@@ -263,7 +263,7 @@ def load_train_image_and_annot(dataset_dir, train_seg_dirs, train_annot_dirs):
         image_path_part = os.path.join(dataset_dir, fname_no_ext)
         image_path = glob.glob(image_path_part + '.*')[0]
         image = load_image(image_path)
-        image = pad_image(image, 34)
+      #  image = pad_image(image, 34) # removed 22nov
         #  needs to be swapped to channels first and rotated etc
         # to be consistent with everything else.
         # todo: consider removing this soon.
@@ -464,7 +464,9 @@ def save(out_path, seg):
 
     if out_path.endswith('.nii.gz'):
         print('save seg shape', seg.shape)
+        seg = seg[::-1, :, ::-1]
         img = nib.Nifti1Image(seg, np.eye(4))
+        
         img.to_filename(out_path)
     else:
         raise Exception(f'Unhandled {out_path}')
@@ -504,7 +506,7 @@ def pad_image(image, pad_size):
     if shap[0] < pad_size:
         to_pad = pad_size - shap[0]
         if (to_pad % 2) == 0:
-            image = np.pad(image, ((to_pad/2,to_pad/2), (0,0), (0, 0)), 'constant')
+            image = np.pad(image, ((int(to_pad/2),int(to_pad/2)), (0,0), (0, 0)), 'constant')
         else:
             image = np.pad(image, ((int(to_pad/2)+1, int(to_pad/2)), (0,0), (0, 0)), 'constant')
     # else:
@@ -516,9 +518,9 @@ def pad_annot(image, pad_size):
     if shap[1] < pad_size:
         to_pad = pad_size - shap[1]
         if (to_pad % 2) == 0:
-            image = np.pad(image, ((0,0), (to_pad/2,to_pad/2), (0,0), (0, 0)), 'constant')
+            image = np.pad(image, ((0,0), (int(to_pad/2),int(to_pad/2)), (0,0), (0, 0)), 'constant') # 'reflect'
         else:
-            image = np.pad(image, ((0,0), (int(to_pad/2)+1, int(to_pad/2)), (0,0), (0, 0)), 'constant')
+            image = np.pad(image, ((0,0), (int(to_pad/2)+1, int(to_pad/2)), (0,0), (0, 0)), 'constant') # 'reflect'
     # else:
     #     image = image[0:pad_size, :, :]
     return image

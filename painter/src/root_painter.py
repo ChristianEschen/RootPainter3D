@@ -228,7 +228,7 @@ class RootPainter(QtWidgets.QMainWindow):
         # dirname = os.path.basename(os.path.dirname(fpath))
         # self.fname = os.path.join(dirname, basename)
         _, _, self.fname = fpath.partition(
-            os.path.basename(self.dataset_dir._str) +os.path.sep)
+            os.path.basename(self.dataset_dir._str) + os.path.sep)
         self.image_path = os.path.join(self.dataset_dir._str, self.fname)
         #etDataFromDatabase(self.settings)
         self.img_data = im_utils.load_image(self.image_path) 

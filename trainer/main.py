@@ -60,8 +60,8 @@ if __name__ == '__main__':
     if settings and 'auto_complete' in settings and settings['auto_complete']:
         ip = settings['server_ip']
         port = settings['server_port']
-        trainer = Trainer(sync_dir, config['small_unet'], ip, port)
+        trainer = Trainer(sync_dir, config, ip, port)
     else:
-        trainer = Trainer(sync_dir, config['small_unet'])
+        trainer = Trainer(sync_dir, config)
 
     trainer.main_loop()

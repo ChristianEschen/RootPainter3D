@@ -144,9 +144,10 @@ def segment_patch(segment_config, annot_patch, conn):
     pad_x = pad_y
 
     # take the relevant region as specified in the instrction
-    im_patch = image[z_start+pad_z:z_end+pad_z,
-                     y_start+pad_y:y_end+pad_y,
-                     x_start+pad_y:x_end+pad_x]
+    im_patch = image[
+        z_start+pad_z:z_end+pad_z,
+        y_start+pad_y:y_end+pad_y,
+        x_start+pad_y:x_end+pad_x]
 
     # now normalise the tile (as this is done for all input to the network
     im_patch = im_utils.normalize_tile(img_as_float32(im_patch))

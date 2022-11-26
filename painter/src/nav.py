@@ -20,7 +20,9 @@ import os
 from PyQt5 import QtWidgets
 from PyQt5 import QtCore
 from PyQt5.QtCore import Qt
-
+import json
+from pathlib import Path, PurePosixPath
+from im_utils import getDataFromDatabase
 
 class NavWidget(QtWidgets.QWidget):
     """ Shows next and previous buttons as well as image position in folder.
@@ -36,7 +38,14 @@ class NavWidget(QtWidgets.QWidget):
         # validation.
         self.before_change = before_change
         self.classes = classes
+        self.settings = self.get_config()
         self.initUI()
+
+    def get_config(self):
+        settings_path = os.path.join(Path.home(), 'root_painter_settings.json')
+        settings = json.load(open(settings_path, 'r'))
+        return settings
+
 
     def initUI(self):
         # container goes full width to allow contents to be center aligned within it.
@@ -83,6 +92,13 @@ class NavWidget(QtWidgets.QWidget):
         all_paths = [os.path.abspath(os.path.join(os.path.abspath(dir_path), a))
                      for a in all_files]
         return all_paths
+    
+    def get_paths(self):
+        all_files = self.all_fnames
+        all_paths = [
+            os.path.join(self.settings['dataset_folder'], a) for a in all_files
+            ]
+        return all_paths
 
     def show_next_image(self):
         if self.before_change():
@@ -94,7 +110,8 @@ class NavWidget(QtWidgets.QWidget):
         self.next_image_button.setEnabled(False)
         QtWidgets.QApplication.processEvents()
         dir_path, _ = os.path.split(self.image_path)
-        all_paths = self.get_path_list(dir_path)
+        #all_paths = self.get_path_list(dir_path)
+        all_paths = self.get_paths()
         cur_idx = all_paths.index(self.image_path)
         next_idx = cur_idx + 1
         if next_idx >= len(all_paths):
@@ -105,7 +122,8 @@ class NavWidget(QtWidgets.QWidget):
 
     def show_prev_image(self):
         dir_path, _ = os.path.split(self.image_path)
-        all_paths = self.get_path_list(dir_path)
+       # all_paths = self.get_path_list(dir_path)
+        all_paths = self.get_paths()
         cur_idx = all_paths.index(self.image_path)
         next_idx = cur_idx - 1
         if next_idx <= 0:
@@ -116,8 +134,9 @@ class NavWidget(QtWidgets.QWidget):
 
     def update_nav_label(self):
         #dir_path, _ = os.path.split(self.image_path)
-        dir_path = self.get_dir_path(self.image_path)
-        all_paths = self.get_path_list(dir_path)
+        #dir_path = self.get_dir_path(self.image_path)
+        #all_paths = self.get_path_list(dir_path)
+        all_paths = self.get_paths()
         cur_idx = all_paths.index(os.path.abspath(self.image_path))
         self.nav_label.setText(f'{cur_idx + 1} / {len(all_paths)}')
 

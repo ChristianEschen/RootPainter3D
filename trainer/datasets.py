@@ -27,6 +27,16 @@ from torch.utils.data import Dataset
 
 from im_utils import load_train_image_and_annot
 import im_utils
+from monai.transforms import (
+    AddChanneld,
+    Compose,
+    LoadImaged,
+    RepeatChanneld,
+    MapTransform,
+    NormalizeIntensityd,
+    RandFlipd,
+    RandCropByPosNegLabeld,
+    SpatialPadd)
 
 def rnd():
     """ Give higher than random chance to select the edges """
@@ -127,7 +137,100 @@ class RPDataset(Dataset):
             if attempts > warn_after_attempts:
                 print(f'Warning {attempts} attempts to get random patch from {fname}')
                 warn_after_attempts *= 10
+
+    def one_hot_decode(self, img):
+        res = []
+        for i in range(0, img.shape[0]):
+            res.append(np.expand_dims(img[0]*(i+1), 0))
+
+        return res
+
+    def get_data_all_annots(self, k,  data_dict, annot):
+        labels = annot.shape[0]
+        remaning = list(range(0, labels))
+        remaning.remove(k)
+
+        data_dict['annots'] = np.expand_dims(annot[k], 0)
+        for i in remaning:
+            data_dict['annots_' + str(i)] = np.expand_dims(annot[i], 0)
+        return data_dict, remaning
     
+    def get_remaing_keys(self, data_dict):
+        annot_names = []
+        for k in data_dict:
+            if k.startswith('annots_'):
+                annot_names.append(k)
+        return annot_names
+    
+    def combine_dicts(self, data_dict, k, remaining):
+        combined = []
+        total = len([k] + remaining)
+        for i in range(0, total):
+            if i == k:
+                combined.append(data_dict['annots'])
+            else:
+                combined.append(data_dict['annots_' + str(i)])
+        return np.concatenate(combined, axis=0)
+            
+    def get_random_tile_3d_byPosNeg(self, annots, segs, image, fname):
+        attempts = 0 
+        warn_after_attempts = 100
+        #image = np.concatenate((np.expand_dims(image, 0), np.expand_dims(image, 0)), axis=0)
+        data_dict = dict()
+        data_dict['image'] = np.expand_dims(image, 0)
+
+        while True:
+            attempts += 1
+            annot_tiles = []
+            seg_tiles = []
+            for seg, annot in zip(segs, annots):
+                # Get the corresponding region of the annotation after network crop
+                data_dict['segs'] = np.expand_dims(seg, 0)
+                k = random.randint(0, annot.shape[0]-1)
+                data_dict, remaining = self.get_data_all_annots(k, data_dict, annot)
+                annot_names = self.get_remaing_keys(data_dict)
+                spatialpad = SpatialPadd(
+                    keys=['image', 'annots', 'segs'] + annot_names,
+                    spatial_size=[self.in_d,
+                                  self.in_w,
+                                  self.in_w])
+                randCrop = RandCropByPosNegLabeld(
+                    keys=['image', 'annots', 'segs'] + annot_names,
+                    label_key='annots',
+                    spatial_size=[self.in_d,
+                                  self.in_w,
+                                  self.in_w],
+                    pos=1, neg=1, num_samples=1)
+
+                transform = Compose([spatialpad, randCrop])
+                data_dict_return = transform(data_dict)
+                seg_tiles.append(data_dict_return[0]['segs'][0])
+                annot_tiles.append(self.combine_dicts(
+                    data_dict_return[0],
+                    k,
+                    remaining))
+            if np.any([np.any(a) for a in annot_tiles]):
+                im_tile = data_dict_return[0]['image'][0]
+                return annot_tiles, seg_tiles, im_tile
+            if attempts > warn_after_attempts:
+                print(f'Warning {attempts} attempts to get random patch from {fname}')
+                warn_after_attempts *= 10
+
+        # for annot in annots:
+        #     data_dict = dict()
+        #     data_dict['image'] = image
+        #     data_dict['segs'] = segs[0]
+        #     data_dict['annots'] = annots
+        #     randCrop = RandCropByPosNegLabeld(
+        #             keys=['image', 'annots', 'segs'],
+        #             label_key='annots',
+        #             spatial_size=[self.in_d,
+        #                         self.in_w,
+        #                         self.in_w],
+        #             pos=1, neg=1, num_samples=1)
+        #     data = randCrop(data_dict)
+        # return data['annots'], data['segs'], data['image']
+        # RandCropByPosNegLabeld
 
     def get_train_item_3d(self, tile_ref):
         # When tile_ref is specified we use these coordinates to get
@@ -141,7 +244,7 @@ class RPDataset(Dataset):
         (image, annots, segs, classes, fname) = load_train_image_and_annot(self.dataset_dir,
                                                                            self.train_seg_dirs,
                                                                            self.annot_dirs)
-        annot_tiles, seg_tiles, im_tile = self.get_random_tile_3d(annots, segs, image, fname)
+        annot_tiles, seg_tiles, im_tile = self.get_random_tile_3d_byPosNeg(annots, segs, image, fname)
 
         im_tile = img_as_float32(im_tile)
         im_tile = im_utils.normalize_tile(im_tile)
@@ -188,7 +291,7 @@ class RPDataset(Dataset):
         #image = np.rot90(image, k=3)
        # image = np.moveaxis(image, -1, 0) # depth moved to beginning
         # reverse lr and ud
-        image = image[::-1, :, ::-1]
+        #image = image[::-1, :, ::-1]
 
         # pad so seg will be size of input image
         image = np.pad(image, ((17, 17), (17, 17), (17, 17)), mode='constant')

@@ -135,7 +135,7 @@ class RootPainter(QtWidgets.QMainWindow):
         # extract json
         with open(proj_file_path, 'r') as json_file:
             settings = json.load(json_file)
-            self.dataset_dir = self.sync_dir / 'datasets' / PurePath(settings['dataset'])
+            self.dataset_dir = PurePath(settings['dataset'])
             
             if 'guide_image_dir' in settings:
                 self.guide_image_dir = self.sync_dir / 'datasets' / PurePath(settings['guide_image_dir'])

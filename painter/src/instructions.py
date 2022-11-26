@@ -41,26 +41,28 @@ def fix_instruction_paths(old_config, sync_dir):
     # remove part of path that might be different on server.
     new_config = {}
     for k, v in old_config.items():
-        # names dont need anything removing
-        # classes dont need anything changing
-        if k in ['file_names',
-                 'classes',
-                 'cient_ip',
-                 'client_username']:
-            new_config[k] = v
-        elif isinstance(v, list):
-            # if its a list fix each string in the list.
-            new_list = []
-            for e in v:
-                new_val = fix_path(e, sync_dir)
-                new_list.append(new_val)
-            new_config[k] = new_list
-        elif isinstance(v, str):
-            new_config[k] = fix_path(v, sync_dir)
-        elif isinstance(v, Path):
-            new_config[k] = fix_path(v, sync_dir)
-        else:
-            new_config[k] = v
+        if k != 'dataset_dir':
+            # names dont need anything removing
+            # classes dont need anything changing
+            if k in ['file_names',
+                    'classes',
+                    'cient_ip',
+                    'client_username']:
+                new_config[k] = v
+            elif isinstance(v, list):
+                # if its a list fix each string in the list.
+                new_list = []
+                for e in v:
+                    new_val = fix_path(e, sync_dir)
+                    new_list.append(new_val)
+                new_config[k] = new_list
+            elif isinstance(v, str):
+                new_config[k] = fix_path(v, sync_dir)
+            elif isinstance(v, Path):
+                new_config[k] = fix_path(v, sync_dir)
+            else:
+                new_config[k] = v
+    new_config['dataset_dir'] = old_config['dataset_dir']
     return new_config
 
 
@@ -68,6 +70,9 @@ def send_instruction(name, content, instruction_dir, sync_dir):
     content = fix_instruction_paths(content, sync_dir)
     # append a hash to avoid over writing older instructions that
     # have not yet finished.
+    if name == 'start_training':
+        content['dataset_dir'] = str(content['dataset_dir'])
+        
     hash_str = '_' + str(hash(json.dumps(content)))
     fpath = os.path.join(instruction_dir, name + hash_str)
     # if this instruction already exists then don't send again

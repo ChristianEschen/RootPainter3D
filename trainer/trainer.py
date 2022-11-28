@@ -266,6 +266,8 @@ class Trainer():
         return found_train_annot 
 
     def one_epoch(self, model, mode='train', val_tile_refs=None, length=None):
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
         if not self.train_annotation_exists():
             # no training until data ready
             return False
@@ -321,7 +323,7 @@ class Trainer():
                    batch_bg_tiles, batch_seg_tiles, batch_classes) in enumerate(loader):
 
             self.check_for_instructions()
-            batch_im_tiles = torch.from_numpy(np.array(batch_im_tiles)).cuda()
+            batch_im_tiles = torch.from_numpy(np.array(batch_im_tiles)).to(device)
             self.optimizer.zero_grad()
         
             # padd channels to allow annotation input (or not)

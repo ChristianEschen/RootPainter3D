@@ -49,6 +49,8 @@ def start_server(sync_dir, ip, port):
 
 
     def create_server_socket(sync_dir, ip, port):
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
         server_cert = os.path.join(Path.home(), 'root_painter_server.public_key')
         server_key = os.path.join(Path.home(), 'root_painter_server.private_key')
         client_certs = os.path.join(Path.home(), 'root_painter_client.public_key')
@@ -61,7 +63,7 @@ def start_server(sync_dir, ip, port):
         # CUDA can be slow the first time it is used. We run this here so user interation is not
         # delayed by waiting for CUDA.
         print('starting CUDA..')
-        _ = torch.from_numpy(np.zeros((100))).cuda()
+        _ = torch.from_numpy(np.zeros((100))).to(device)
 
 
 
@@ -100,6 +102,8 @@ def start_server(sync_dir, ip, port):
 
 
 def segment_patch(segment_config, annot_patch, conn):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     global cached_image
     global cached_image_fname
     global cached_model
@@ -152,13 +156,13 @@ def segment_patch(segment_config, annot_patch, conn):
     # now normalise the tile (as this is done for all input to the network
     im_patch = im_utils.normalize_tile(img_as_float32(im_patch))
     model_input = torch.cuda.FloatTensor(1, 3, im_patch.shape[0], im_patch.shape[1], im_patch.shape[2])
-    model_input[0, 0] = torch.from_numpy(im_patch.astype(np.float32)).cuda()
+    model_input[0, 0] = torch.from_numpy(im_patch.astype(np.float32)).to(device)
 
     bg_patch = annot_patch[0]
     fg_patch = annot_patch[1]
 
-    model_input[0, 1] = torch.from_numpy(fg_patch).cuda()
-    model_input[0, 2] = torch.from_numpy(bg_patch).cuda()
+    model_input[0, 1] = torch.from_numpy(fg_patch).to(device)
+    model_input[0, 2] = torch.from_numpy(bg_patch).to(device)
 
     # Use a cached model for improved performance
     if model_path == cached_model_path:

@@ -49,14 +49,11 @@ if __name__ == '__main__':
         config = yaml.safe_load(f)
     arguments['sync_dir'] = settings_path
     arguments = {**config, **arguments}
-   # if args.syncdir:
     sync_dir = args.syncdir
     startup_setup(arguments, sync_dir=sync_dir)
-    # else:
-    #     startup_setup(arguments, sync_dir=None)
-    #     settings = json.load(open(settings_path, 'r'))
-    #     sync_dir = Path(settings['sync_dir'])
-        
+    import torch
+    print('cuda=?' ,torch.cuda.is_available())
+
     if settings and 'auto_complete' in settings and settings['auto_complete']:
         ip = settings['server_ip']
         port = settings['server_port']

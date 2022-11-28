@@ -44,6 +44,8 @@ def fake_cnn(tiles_for_gpu):
     return np.array(output)
  
 def get_in_w_out_w_pairs():
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     # matching pairs of input/output sizes for specific unet used
     # 36 to 228 in incrememnts of 16 (sorted large to small)
     in_w_list = sorted([36 + (x*16) for x in range(20)], reverse=True)
@@ -54,12 +56,13 @@ def get_in_w_out_w_pairs():
 
 
 def allocate_net(in_w, out_w, num_classes, small_unet):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     channels = 1 # change to 3 for auto-complete
     if small_unet:
-        net = SmallUNet3D(im_channels=channels, num_classes=num_classes).cuda()
+        net = SmallUNet3D(im_channels=channels, num_classes=num_classes).to(device)
     else:
-        net = UNet3D(im_channels=channels, num_classes=num_classes).cuda()
+        net = UNet3D(im_channels=channels, num_classes=num_classes).to(device)
     net = torch.nn.DataParallel(net)
     optimizer = torch.optim.SGD(net.parameters(), lr=0.01,
                                 momentum=0.99, nesterov=True)
@@ -69,9 +72,9 @@ def allocate_net(in_w, out_w, num_classes, small_unet):
         #                      b, c,  d,  h,    w    
         input_data = np.zeros((4, channels, 52, in_w, in_w))
         optimizer.zero_grad()
-        outputs = net(torch.from_numpy(input_data).cuda().float())
-        batch_fg_tiles = torch.ones(4, num_classes, 52, in_w, in_w).long().cuda()
-        batch_bg_tiles = torch.zeros(4, num_classes, 52, in_w, in_w).long().cuda()
+        outputs = net(torch.from_numpy(input_data).to(device).float())
+        batch_fg_tiles = torch.ones(4, num_classes, 52, in_w, in_w).long().to(device)
+        batch_bg_tiles = torch.zeros(4, num_classes, 52, in_w, in_w).long().to(device)
         batch_fg_tiles[:, 0, 0] = 0
         batch_bg_tiles[:, 0, 0] = 1
         batch_classes = []
@@ -123,6 +126,8 @@ def get_latest_model_paths(model_dir, k):
 
 
 def load_model(model_path, classes, small_unet):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     global cached_model
     global cached_model_path
     
@@ -146,7 +151,7 @@ def load_model(model_path, classes, small_unet):
         model = torch.nn.DataParallel(model)
         model.load_state_dict(torch.load(model_path))
     if not use_fake_cnn:
-        model.cuda()
+        model.to(device)
     # store in cache as most frequest model is laoded often
     cached_model_path = model_path
     cached_model = model
@@ -154,6 +159,8 @@ def load_model(model_path, classes, small_unet):
 
 
 def random_model(classes, small_unet):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     # num out channels is twice number of channels
     # as we have a positive and negative output for each structure.
     # disabled for now as auto-complete feature is stalled.
@@ -164,10 +171,12 @@ def random_model(classes, small_unet):
         model = UNet3D(num_classes=len(classes), im_channels=1)
     model = torch.nn.DataParallel(model)
     if not use_fake_cnn: 
-        model.cuda()
+        model.to(device)
     return model
 
 def create_first_model_with_random_weights(model_dir, classes, small_unet):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     # used when no model was specified on project creation.
     model_num = 1
     model_name = str(model_num).zfill(6)
@@ -176,7 +185,7 @@ def create_first_model_with_random_weights(model_dir, classes, small_unet):
     model_path = os.path.join(model_dir, model_name)
     torch.save(model.state_dict(), model_path)
     if not use_fake_cnn: 
-        model.cuda()
+        model.to(device)
     return model
 
 
@@ -245,6 +254,8 @@ def segment_3d(cnn, image, batch_size, in_tile_shape, out_tile_shape, auto_compl
     """
     in_tile_shape and out_tile_shape are (depth, height, width)
     """
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     # Return prediction for each pixel in the image
     # The cnn will give a the output as channels where
     # each channel corresponds to a specific class 'probability'
@@ -320,7 +331,7 @@ def segment_3d(cnn, image, batch_size, in_tile_shape, out_tile_shape, auto_compl
         tiles_to_process = np.array(tiles_to_process)
         tiles_for_gpu = torch.from_numpy(tiles_to_process)
 
-        tiles_for_gpu = tiles_for_gpu.cuda().float()
+        tiles_for_gpu = tiles_for_gpu.to(device).float()
         # TODO: consider use of detach. 
         # I might want to move to cpu later to speed up the next few operations.
         # I added .detach().cpu() to prevent a memory error.

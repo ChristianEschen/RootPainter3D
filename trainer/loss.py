@@ -52,6 +52,8 @@ def combined_loss(predictions, labels):
 def get_batch_loss(outputs, batch_fg_tiles, batch_bg_tiles, batch_seg_tiles,
                    batch_classes, project_classes,
                    compute_loss):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     """
 
         outputs - predictions from neural network (not softmaxed)
@@ -108,8 +110,8 @@ def get_batch_loss(outputs, batch_fg_tiles, batch_bg_tiles, batch_seg_tiles,
     
 
 
-                    mask = mask.cuda()
-                    fg_tile = fg_tile.cuda()
+                    mask = mask.to(device)
+                    fg_tile = fg_tile.to(device)
 
                     # I want to get tps, tns, fps and fns 
                     # from fg_tile, mask, class_outputs
@@ -136,7 +138,7 @@ def get_batch_loss(outputs, batch_fg_tiles, batch_bg_tiles, batch_seg_tiles,
 
                     seg_tile = batch_seg_tiles[im_idx][i]
                     if seg_tile is not None:
-                        seg_tile = torch.from_numpy(seg_tile[17:-17,17:-17,17:-17]).cuda()
+                        seg_tile = torch.from_numpy(seg_tile[17:-17,17:-17,17:-17]).to(device)
                         # for this purpose we ensure segmentation never disagrees with annotation.
                         seg_tile[fg_tile] = 1
                         seg_tile[bg_tile] = 0
@@ -148,8 +150,8 @@ def get_batch_loss(outputs, batch_fg_tiles, batch_bg_tiles, batch_seg_tiles,
             continue
         
         if compute_loss:
-            fg_tiles = torch.stack(fg_tiles).cuda()
-            masks = torch.stack(masks).cuda()
+            fg_tiles = torch.stack(fg_tiles).to(device)
+            masks = torch.stack(masks).to(device)
             class_outputs = torch.stack(class_outputs)
                         
             if len(seg_class_outputs):

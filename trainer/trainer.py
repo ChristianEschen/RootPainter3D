@@ -71,7 +71,7 @@ class Trainer():
         self.first_loop = True
         self.batch_size = 4 
         self.config = config
-        self.num_workers = min(multiprocessing.cpu_count(), config['max_workers'])
+        self.num_workers = config['max_workers']
         print(self.num_workers, 'workers will be assigned for data loaders')
         self.optimizer = None
         self.val_tile_refs = []
@@ -209,6 +209,7 @@ class Trainer():
 
         if not self.training:
             self.train_config = config
+            self.train_config['dataset_dir'] = self.config['dataset_folder']
             
             classes = ['annotations']
             if 'classes' in self.train_config:

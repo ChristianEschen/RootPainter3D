@@ -61,9 +61,10 @@ class RootPainter(QtWidgets.QMainWindow):
 
     closed = QtCore.pyqtSignal()
 
-    def __init__(self, sync_dir, contrast_presets, server_ip=None, server_port=None):
+    def __init__(self, sync_dir, contrast_presets, config, server_ip=None, server_port=None):
         super().__init__()
         self.sync_dir = sync_dir
+        self.config = config
         self.instruction_dir = sync_dir / 'instructions'
         self.send_instruction = partial(send_instruction,
                                         instruction_dir=self.instruction_dir,
@@ -81,6 +82,7 @@ class RootPainter(QtWidgets.QMainWindow):
         self.im_height = None
         self.annot_data = None
         self.seg_data = None
+        
 
         # for patch segment, useful for knowing how much annotation to send to the server.
         self.input_shape = (52, 228, 228)
@@ -141,7 +143,8 @@ class RootPainter(QtWidgets.QMainWindow):
                 self.guide_image_dir = self.sync_dir / 'datasets' / PurePath(settings['guide_image_dir'])
 
             self.proj_location = self.sync_dir / PurePath(settings['location'])
-            self.image_fnames = settings['file_names']
+          #  self.image_fnames = settings['file_names']
+            self.image_fnames = getDataFromDatabase(self.config)
             self.seg_dir = self.proj_location / 'segmentations'
             self.log_dir = self.proj_location / 'logs'
 

@@ -20,7 +20,7 @@ def segment_full_image(root_painter, fname=None, overwrite=False):
         fname = root_painter.fname
     # send instruction to segment the image.
     root_painter.send_instruction('segment', {
-        "dataset_dir": root_painter.dataset_dir,
+        "dataset_dir": str(root_painter.dataset_dir),
         "seg_dir": root_painter.seg_dir,
         "file_names": [fname],
         "message_dir": root_painter.message_dir,

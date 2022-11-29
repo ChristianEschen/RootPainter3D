@@ -22,25 +22,27 @@ def fix_config_paths(sync_dir, old_config):
     new_config = {}
     for k, v in old_config.items():
         if k in ['file_names',
-                 'file_name']:
+                'file_name']:
             # names dont need a path appending
             new_config[k] = v
         elif k == 'classes':
             # classes should not be altered
             new_config[k] = v
+        elif k == 'dataset_dir':
+            new_config['dataset_dir'] = old_config['dataset_dir']
         elif isinstance(v, list):
             # if its a list fix each string in the list.
             new_list = []
             for e in v:
                 new_val = e.replace('\\', '/')
                 new_val = os.path.join(sync_dir,
-                                       os.path.normpath(new_val))
+                                    os.path.normpath(new_val))
                 new_list.append(new_val)
             new_config[k] = new_list
         elif isinstance(v, str):
             v = v.replace('\\', '/')
             new_config[k] = os.path.join(sync_dir,
-                                         os.path.normpath(v))
+                                        os.path.normpath(v))
         else:
             new_config[k] = v
     return new_config

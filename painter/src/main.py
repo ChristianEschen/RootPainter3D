@@ -27,7 +27,8 @@ import yaml
 import argparse
 
 
-def init_root_painter():
+def init_root_painter(config):
+    sys.argv = [sys.argv[0]]
     app = QtWidgets.QApplication(sys.argv)
     settings_path = os.path.join(Path.home(), 'root_painter_settings.json')
     try:
@@ -41,6 +42,7 @@ def init_root_painter():
             dir_path = QtWidgets.QFileDialog.getExistingDirectory()
             if not dir_path:
                 exit()
+                
             with open(settings_path, 'w') as json_file:
                 content = {
                     "sync_dir": os.path.abspath(dir_path),
@@ -51,6 +53,7 @@ def init_root_painter():
                 json.dump(content, json_file, indent=4)
 
         settings = json.load(open(settings_path, 'r'))
+
         sync_dir = Path(settings['sync_dir'])
         contrast_presets = settings['contrast_presets']
         server_ip = None
@@ -59,11 +62,11 @@ def init_root_painter():
             server_ip = settings["server_ip"]
             server_port = settings["server_port"]
         def reopen():
-            main_window = RootPainter(sync_dir, contrast_presets, server_ip, server_port)
+            main_window = RootPainter(sync_dir, contrast_presets, config, server_ip, server_port)
             main_window.closed.connect(reopen)
             main_window.show()
 
-        main_window = RootPainter(sync_dir, contrast_presets, server_ip, server_port)
+        main_window = RootPainter(sync_dir, contrast_presets, config, server_ip, server_port)
         # close project causes reopen with missing project UI
         main_window.closed.connect(reopen)
         main_window.show()
@@ -80,14 +83,14 @@ def init_root_painter():
         msg.exec_()
 
 if __name__ == '__main__':
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('--config_file',
-    #                     help="""
-    #             'please specify path to yaml config file""", type=str,
-    #             required=True,
-    #             default=False)
-    # args = parser.parse_args()
-    # arguments = vars(args)
-    # with open(args.config_file, 'r') as f:
-    #     config = yaml.safe_load(f)
-    init_root_painter()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--config_file',
+        help="please specify path to yaml config file", type=str,
+        required=True,
+        default=False)
+    args = parser.parse_args()
+    arguments = vars(args)
+    with open(args.config_file, 'r') as f:
+        config = yaml.safe_load(f)
+    init_root_painter(config)

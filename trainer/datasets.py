@@ -100,7 +100,6 @@ class RPDataset(Dataset):
 
         attempts = 0 
         warn_after_attempts = 100
-        
         while True:
             attempts += 1
             x_in = math.floor(rnd() * right_lim)
@@ -244,7 +243,10 @@ class RPDataset(Dataset):
         (image, annots, segs, classes, fname) = load_train_image_and_annot(self.dataset_dir,
                                                                            self.train_seg_dirs,
                                                                            self.annot_dirs)
-        annot_tiles, seg_tiles, im_tile = self.get_random_tile_3d_byPosNeg(annots, segs, image, fname)
+       # annot_tiles, seg_tiles, im_tile = self.get_random_tile_3d_byPosNeg(annots, segs, image, fname)
+        annot_tiles, seg_tiles, im_tile = self.get_random_tile_3d(annots, segs, image, fname)
+
+        
 
         im_tile = img_as_float32(im_tile)
         im_tile = im_utils.normalize_tile(im_tile)

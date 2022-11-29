@@ -71,7 +71,7 @@ class Trainer():
         self.first_loop = True
         self.batch_size = 4 
         self.config = config
-        self.num_workers = min(multiprocessing.cpu_count(), config['max_workers'])
+        self.num_workers = config['max_workers']
         print(self.num_workers, 'workers will be assigned for data loaders')
         self.optimizer = None
         self.val_tile_refs = []
@@ -209,6 +209,7 @@ class Trainer():
 
         if not self.training:
             self.train_config = config
+            self.train_config['dataset_dir'] = self.config['dataset_folder']
             
             classes = ['annotations']
             if 'classes' in self.train_config:
@@ -265,6 +266,8 @@ class Trainer():
         return found_train_annot 
 
     def one_epoch(self, model, mode='train', val_tile_refs=None, length=None):
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
         if not self.train_annotation_exists():
             # no training until data ready
             return False
@@ -320,7 +323,7 @@ class Trainer():
                    batch_bg_tiles, batch_seg_tiles, batch_classes) in enumerate(loader):
 
             self.check_for_instructions()
-            batch_im_tiles = torch.from_numpy(np.array(batch_im_tiles)).cuda()
+            batch_im_tiles = torch.from_numpy(np.array(batch_im_tiles)).to(device)
             self.optimizer.zero_grad()
         
             # padd channels to allow annotation input (or not)

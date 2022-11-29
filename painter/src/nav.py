@@ -137,7 +137,7 @@ class NavWidget(QtWidgets.QWidget):
         #dir_path = self.get_dir_path(self.image_path)
         #all_paths = self.get_path_list(dir_path)
         all_paths = self.get_paths()
-        cur_idx = all_paths.index(os.path.abspath(self.image_path))
+        cur_idx = all_paths.index(self.image_path)
         self.nav_label.setText(f'{cur_idx + 1} / {len(all_paths)}')
 
 

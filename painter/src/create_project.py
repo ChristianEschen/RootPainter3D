@@ -210,13 +210,13 @@ class CreateProjectWidget(QtWidgets.QWidget):
         dataset_path = os.path.abspath(self.selected_dir)
         datasets_dir = str(self.sync_dir / 'datasets')
     
-        if not dataset_path.startswith(datasets_dir):
-            message = ("When creating a project the selected dataset must be in "
-                       "the datasets folder. The selected dataset is "
-                       f"{dataset_path} and the datasets folder is "
-                       f"{datasets_dir}.")
-            QtWidgets.QMessageBox.about(self, 'Project Creation Error', message)
-            return
+        # if not dataset_path.startswith(datasets_dir):
+        #     message = ("When creating a project the selected dataset must be in "
+        #                "the datasets folder. The selected dataset is "
+        #                f"{dataset_path} and the datasets folder is "
+        #                f"{datasets_dir}.")
+        #     QtWidgets.QMessageBox.about(self, 'Project Creation Error', message)
+        #     return
 
         os.makedirs(self.sync_dir / project_location)
         proj_file_path = (self.sync_dir / project_location /
@@ -257,7 +257,7 @@ class CreateProjectWidget(QtWidgets.QWidget):
             original_model_file = self.selected_model
 
 
-        dataset = dataset_path.replace(datasets_dir, '')[1:]
+        dataset = dataset_path
         # get files in random order for training.
         #all_fnames = os.listdir(dataset_path)
        # all_fnames = get_recursive_files(dataset_path)
@@ -295,5 +295,6 @@ class CreateProjectWidget(QtWidgets.QWidget):
         project_info['file_names'] = all_fnames
         with open(proj_file_path, 'w') as json_file:
             json.dump(project_info, json_file, indent=4)
+        #self.created.emit(str(proj_file_path))
         self.created.emit(proj_file_path)
         self.close()

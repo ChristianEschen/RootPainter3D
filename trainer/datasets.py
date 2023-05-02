@@ -31,9 +31,15 @@ from monai.transforms import (
     AddChanneld,
     Compose,
     LoadImaged,
+    RandAffined,
     RepeatChanneld,
     MapTransform,
+    RandFlipd,
+    RandGaussianNoised,
+    RandZoomd,
     NormalizeIntensityd,
+    RandGaussianSmoothd,
+    RandScaleIntensityd,
     RandFlipd,
     RandCropByPosNegLabeld,
     SpatialPadd)
@@ -170,7 +176,7 @@ class RPDataset(Dataset):
             else:
                 combined.append(data_dict['annots_' + str(i)])
         return np.concatenate(combined, axis=0)
-            
+
     def get_random_tile_3d_byPosNeg(self, annots, segs, image, fname):
         attempts = 0 
         warn_after_attempts = 100
@@ -215,21 +221,26 @@ class RPDataset(Dataset):
                 print(f'Warning {attempts} attempts to get random patch from {fname}')
                 warn_after_attempts *= 10
 
-        # for annot in annots:
-        #     data_dict = dict()
-        #     data_dict['image'] = image
-        #     data_dict['segs'] = segs[0]
-        #     data_dict['annots'] = annots
-        #     randCrop = RandCropByPosNegLabeld(
-        #             keys=['image', 'annots', 'segs'],
-        #             label_key='annots',
-        #             spatial_size=[self.in_d,
-        #                         self.in_w,
-        #                         self.in_w],
-        #             pos=1, neg=1, num_samples=1)
-        #     data = randCrop(data_dict)
-        # return data['annots'], data['segs'], data['image']
-        # RandCropByPosNegLabeld
+    def apply_data_augmentation(self, im_tile, annot_tiles, seg_tiles):
+        # wrap in dict for transforms
+        data_dict = dict()
+        data_dict['image'] = np.expand_dims(im_tile, 0)
+        if seg_tiles[0] is not None:
+            data_dict['segs'] = np.expand_dims(seg_tiles[0], 0)
+        # unroll the list of annots into a dict
+        annots_dict = self.unroll_annots_to_dict(annot_tiles)
+        # get names for each annot
+        # annot_names = annots_dict.keys()
+        data_dict.update(annots_dict)
+        self.feature_names = data_dict.keys()
+        transforms_to_apply = self.get_train_transforms()
+        data_dict_return = transforms_to_apply(data_dict)
+        im_tile = data_dict_return['image'][0, :, :, :]
+        if seg_tiles[0] is not None:
+            seg_tiles = [data_dict_return['segs'][0, :, :, :]]
+        annot_tiles = [self.transform_dict_of_annots_to_numpy(annots_dict)]
+        return im_tile, annot_tiles, seg_tiles
+
 
     def get_train_item_3d(self, tile_ref):
         # When tile_ref is specified we use these coordinates to get
@@ -243,9 +254,12 @@ class RPDataset(Dataset):
         (image, annots, segs, classes, fname) = load_train_image_and_annot(self.dataset_dir,
                                                                            self.train_seg_dirs,
                                                                            self.annot_dirs)
+        
        # annot_tiles, seg_tiles, im_tile = self.get_random_tile_3d_byPosNeg(annots, segs, image, fname)
         annot_tiles, seg_tiles, im_tile = self.get_random_tile_3d(annots, segs, image, fname)
-
+        im_tile, annot_tiles, seg_tiles = self.apply_data_augmentation(
+            im_tile, annot_tiles, seg_tiles)
+        
         
 
         im_tile = img_as_float32(im_tile)
@@ -272,7 +286,93 @@ class RPDataset(Dataset):
         im_tile = np.expand_dims(im_tile, axis=0)
         assert len(backgrounds) == len(seg_tiles)
         return im_tile, foregrounds, backgrounds, seg_tiles, classes
-       
+
+    def unroll_annots_to_dict(self, annots):
+        annot_dict = dict()
+        for i in range(0, annots[0].shape[0]):
+            annot_dict['annots_' + str(i)] = np.expand_dims(annots[0][i], 0)
+        return annot_dict
+
+    def transform_dict_of_annots_to_numpy(self, annot_dict):
+        # loop through the dict annd stack the numpy arrays
+        for idx, annot in enumerate(list(annot_dict.keys())):
+            if idx == 0:
+                annots = annot_dict[annot]
+            else:
+                annots = np.vstack((annots, annot_dict[annot]))
+        return annots
+
+    def get_modes_sampling(self):
+        modes = []
+        for i in self.feature_names:
+            if i == 'image':
+                modes.append('bilinear')
+            else:
+                modes.append('nearest')
+        return modes
+
+    def get_train_transforms(self):
+        modes = self.get_modes_sampling()
+        transforms = Compose([
+            # translation
+            RandAffined(
+                    keys=self.feature_names,
+                    mode=modes,
+                    prob=0.2,
+                    spatial_size=(self.in_d,
+                                  self.in_w,
+                                  self.in_w),
+                    translate_range=(
+                            int(0.5*self.in_d),
+                            int(0.22*self.in_w),
+                            int(0.22*self.in_w)),
+                    padding_mode="zeros"),
+            # scaling spatial
+            RandAffined(
+                    keys=self.feature_names,
+                    mode=modes,
+                    prob=0.2,
+                    spatial_size=(self.in_d,
+                                  self.in_w,
+                                  self.in_w),
+                    scale_range=(0, 0.15, 0.15),
+                    padding_mode="zeros"),
+            # scaling temporal
+            RandZoomd(
+                keys=self.feature_names,
+                prob=0.2,
+                min_zoom=(0.5, 1, 1),
+                max_zoom=(1.5, 1, 1),
+                mode=['nearest' for i in range(0, len(self.feature_names))]),
+            # rotation
+            RandAffined(
+                keys=self.feature_names,
+                mode=modes,
+                prob=0.2,
+                rotate_range=(0.17, 0, 0),
+                spatial_size=(self.in_d,
+                              self.in_w,
+                              self.in_w),
+                padding_mode="zeros"),
+            # flipping
+            RandFlipd(keys=self.feature_names, spatial_axis=[0], prob=0.2),
+            RandFlipd(keys=self.feature_names, spatial_axis=[1], prob=0.2),
+            RandFlipd(keys=self.feature_names, spatial_axis=[2], prob=0.2),
+            # Sclae intensity
+            RandScaleIntensityd(keys=["image"], factors=0.3, prob=0.15),
+            # Gaussian noise
+            RandGaussianNoised(keys=["image"], std=0.01, prob=0.15),
+            # Gaussian smoothing
+            RandGaussianSmoothd(
+                keys=["image"],
+                sigma_x=(0.0, 0.0),
+                sigma_y=(0.5, 1.15),
+                sigma_z=(0.5, 1.15),
+                prob=0.15,
+            ),
+        ])
+
+        return transforms
     def get_val_item(self, tile_ref):
         return self.get_tile_from_ref_3d(tile_ref)
 

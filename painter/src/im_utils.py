@@ -98,36 +98,24 @@ def pad_image(image, pad_size):
     #     image = image[0:pad_size, :, :]
     return image
 
+
 def load_image(image_path):
     if image_path.endswith('.npy'):
         return np.load(image_path, mmap_mode='c')
     elif image_path.endswith('.nii.gz'):
         image = nib.load(image_path)
         image = np.array(image.dataobj)
-        image = np.rot90(image, k=3)
-        image = np.moveaxis(image, -1, 0) # depth moved to beginning
-        # reverse lr and ud
-        image = image[::-1, :, ::-1]
     elif image_path.endswith('.nrrd'):
         image, header = nrrd.read(image_path)
-        image = np.rot90(image, k=3)
-        image = np.moveaxis(image, -1, 0) # depth moved to beginning
-        # reverse lr and ud
-        image = image[::-1, :, ::-1]
     elif image_path.endswith(('.dicom', '.DICOM', '.dcm',
                               '.DCM',  '.sr', '.SR')):
         image = sitk.ReadImage(image_path)
         image = sitk.GetArrayFromImage(image)
-       # image = resizeVolume(image, (128, 128))
-      #  image = pad_image(image, 34)
-        print('image shape loaded (dcm)', image.shape)
-       # image = image[0:32, :, :]
-      #  image = sitk.
+       # print('image shape loaded (dcm)', image.shape)
     else:
         raise Exception(f"Unhandled file ending {image_path}")
     image = image.astype(np.int)
     return image
-
 
 def load_annot(annot_path, img_data_shape):
     if annot_path.endswith(('.dicom', '.DICOM', '.dcm',

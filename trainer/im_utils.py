@@ -240,6 +240,8 @@ def load_train_image_and_annot(dataset_dir, train_seg_dirs, train_annot_dirs):
             annot_path = os.path.join(annot_dir, fname)
             annot = load_image(annot_path)
             # TODO not pad here?
+            annot = pad_annot(annot, 34)
+
          #   annot = pad_annot(annot, 34) # removed 22nov
             # Why would we have annotations without content?
             assert np.sum(annot) > 0
@@ -252,6 +254,7 @@ def load_train_image_and_annot(dataset_dir, train_seg_dirs, train_annot_dirs):
                 # TODO :
                 # MAYBE NOT (0, 0) ???
               #  seg = pad_image(seg, 34) # removed 22nov
+                seg = pad_image(seg, 34)
                 seg = np.pad(seg, ((17,17), (17,17), (17, 17)), mode='constant')
             else:
                 seg = None

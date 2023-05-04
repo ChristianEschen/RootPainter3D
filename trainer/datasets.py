@@ -27,22 +27,22 @@ from torch.utils.data import Dataset
 
 from im_utils import load_train_image_and_annot
 import im_utils
-from monai.transforms import (
-    AddChanneld,
-    Compose,
-    LoadImaged,
-    RandAffined,
-    RepeatChanneld,
-    MapTransform,
-    RandFlipd,
-    RandGaussianNoised,
-    RandZoomd,
-    NormalizeIntensityd,
-    RandGaussianSmoothd,
-    RandScaleIntensityd,
-    RandFlipd,
-    RandCropByPosNegLabeld,
-    SpatialPadd)
+# from monai.transforms import (
+#     AddChanneld,
+#     Compose,
+#     LoadImaged,
+#     RandAffined,
+#     RepeatChanneld,
+#     MapTransform,
+#     RandFlipd,
+#     RandGaussianNoised,
+#     RandZoomd,
+#     NormalizeIntensityd,
+#     RandGaussianSmoothd,
+#     RandScaleIntensityd,
+#     RandFlipd,
+#     RandCropByPosNegLabeld,
+#     SpatialPadd)
 
 def rnd():
     """ Give higher than random chance to select the edges """
@@ -311,8 +311,27 @@ class RPDataset(Dataset):
                 modes.append('nearest')
         return modes
 
+    def import_transforms(self):
+        from monai.transforms import (
+            AddChanneld,
+            Compose,
+            LoadImaged,
+            RandAffined,
+            RepeatChanneld,
+            MapTransform,
+            RandFlipd,
+            RandGaussianNoised,
+            RandZoomd,
+            NormalizeIntensityd,
+            RandGaussianSmoothd,
+            RandScaleIntensityd,
+            RandFlipd,
+            RandCropByPosNegLabeld,
+            SpatialPadd)
+        return Compose, LoadImaged, RandAffined, RepeatChanneld, MapTransform, RandFlipd, RandGaussianNoised, RandZoomd, NormalizeIntensityd, RandGaussianSmoothd, RandScaleIntensityd, RandFlipd, RandCropByPosNegLabeld, SpatialPadd
     def get_train_transforms(self):
         modes = self.get_modes_sampling()
+        Compose, LoadImaged, RandAffined, RepeatChanneld, MapTransform, RandFlipd, RandGaussianNoised, RandZoomd, NormalizeIntensityd, RandGaussianSmoothd, RandScaleIntensityd, RandFlipd, RandCropByPosNegLabeld, SpatialPadd = self.import_transforms()
         transforms = Compose([
             # translation
             RandAffined(

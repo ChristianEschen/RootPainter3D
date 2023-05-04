@@ -144,12 +144,12 @@ def load_model(model_path, classes, small_unet):
     else:
         model = UNet3D(num_classes=len(classes), im_channels=1)
     try:
-        model.load_state_dict(torch.load(model_path))
+        model.load_state_dict(torch.load(model_path, map_location=device))
         model = torch.nn.DataParallel(model)
     # pylint: disable=broad-except, bare-except
     except:
         model = torch.nn.DataParallel(model)
-        model.load_state_dict(torch.load(model_path))
+        model.load_state_dict(torch.load(model_path, map_location=device))
     if not use_fake_cnn:
         model.to(device)
     # store in cache as most frequest model is laoded often
